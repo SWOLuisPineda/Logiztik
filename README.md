@@ -30,6 +30,74 @@ Aplicación web donde los empleados de LAG consultan qué herramientas de AI est
 | Tests E2E    | Playwright              |
 | CI/CD        | GitHub Actions          |
 
+
+```mermaid
+%%{init:
+{
+  "theme": "base",
+  "themeVariables": {
+    "background": "#CAF0F8",
+    "primaryTextColor": "#03045E",
+    "textColor": "#03045E",
+    "primaryColor": "#0077B6",
+    "primaryBorderColor": "#023E8A",
+    "secondaryColor": "#48CAE4",
+    "secondaryBorderColor": "#0096C7",
+    "tertiaryColor": "#ADE8F4",
+    "tertiaryBorderColor": "#00B4D8",
+    "lineColor": "#023E8A",
+    "edgeLabelBackground": "#CAF0F8",
+    "clusterBkg": "#90E0EF",
+    "clusterBorder": "#0096C7",
+    "nodeBorder": "#023E8A",
+    "mainBkg": "#0077B6",
+    "secondBkg": "#48CAE4",
+    "fontFamily": "Inter, Segoe UI, Arial, sans-serif"
+  }
+}}%%
+flowchart TB
+
+    U[Usuario]
+
+    subgraph Frontend
+        A[Next.js 14 App Router]
+        B[React Components]
+        C[Tailwind CSS]
+    end
+
+    subgraph Backend
+        D[API Routes / Server Actions]
+        E[Validaciones Zod]
+        F[Prisma ORM]
+    end
+
+    subgraph Bases de Datos
+        G[(SQLite Desarrollo)]
+        H[(PostgreSQL Neon Staging/Producción)]
+    end
+
+    subgraph Calidad
+        I[Vitest]
+        J[Playwright]
+    end
+
+    U --> A
+    A --> B
+    B --> C
+
+    A --> D
+    D --> E
+    E --> F
+
+    F --> G
+    F --> H
+
+    I --> D
+    I --> B
+
+    J --> A
+```
+
 ---
 
 ## Metodología
