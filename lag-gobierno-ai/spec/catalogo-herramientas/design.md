@@ -2,6 +2,7 @@
 
 > Módulo: catalogo-herramientas
 > Stack: Next.js 14 (App Router) · TypeScript · Prisma · Zod · Tailwind CSS
+> Paradigma: Clean Architecture (4 capas) — ver `docs/engineering/Clean-Architecture-Unify.md`
 > Refs: requirements.md, product-brief.md, docs/engineering/standards.md
 
 ---
@@ -10,13 +11,13 @@
 
 | Componente | Tipo | Responsabilidad |
 |------------|------|-----------------|
-| `CatalogoPage` | Server Component | Página principal. Consulta Prisma directamente (ver regla de acceso a datos abajo). Renderiza layout con filtros y listado. Ruta: `/catalogo` |
+| `CatalogoPage` | Server Component | Página principal. Llama a `ListHerramientasHandler` (Application layer) para obtener datos. Renderiza layout con filtros y listado. Ruta: `/catalogo` |
 | `ToolList` | Server Component | Renderiza la tabla/grid de herramientas recibidas como props. Muestra nombre, proveedor, categoría, nivel, semáforo. Agrupa activas primero, retiradas al final. |
 | `ToolCard` | Server Component | Tarjeta individual de herramienta en el listado. Incluye semáforo visual y link al detalle. Si retirada, muestra razón de retiro inline. |
 | `SemaforoIndicator` | Server Component | Componente visual reutilizable. Verde = Activa, Rojo = Retirada, Amarillo = Condicional. Accesible (aria-label + texto alternativo). |
 | `NivelBadge` | Server Component | Badge con color por nivel de clasificación (Pública, Interna, Confidencial, Restringida). Si nivel es null, muestra "Sin clasificar" en gris. |
 | `FilterBar` | Client Component | Barra de filtros interactiva. Dropdown de nivel de clasificación. Mantiene estado de filtro con `useSearchParams`. Label accesible asociado al select. |
-| `ToolDetailPage` | Server Component | Página de detalle. Fetch por ID, muestra todos los campos + semáforo + DPA. Ruta: `/catalogo/[id]` |
+| `ToolDetailPage` | Server Component | Página de detalle. Llama a `GetHerramientaByIdHandler` (Application layer), muestra todos los campos + semáforo + DPA. Ruta: `/catalogo/[id]` |
 | `BackButton` | Client Component | Navegación de vuelta al catálogo. Usa `Link` con href `/catalogo` (no `router.back()`) para evitar salir del sitio si el usuario llegó por link directo. Preserva query param `nivel` si está presente en la URL actual. |
 | `EmptyState` | Server Component | Mensaje informativo cuando no hay resultados (filtro vacío o catálogo sin datos). |
 | `ErrorState` | Client Component | Mensaje de error amigable cuando falla el fetch a BD. No expone detalles internos. Incluye botón "Reintentar" (`reset()`). Es Client Component porque se usa dentro de `error.tsx` (que Next.js requiere como CC). |
@@ -35,15 +36,38 @@ src/app/
 │       └── not-found.tsx → "Herramienta no encontrada"
 ```
 
-### Regla de acceso a datos
+### Regla de acceso a datos (Clean Architecture — Dependency Rule)
 
-| Consumidor | Accede vía | Razón |
-|------------|-----------|-------|
-| Server Components (`CatalogoPage`, `ToolDetailPage`) | Prisma directo (`import { prisma } from "@/lib/prisma"`) | No hay overhead de HTTP, acceso directo a BD desde el server. Es la forma idiomática en Next.js App Router. |
-| API route handlers (`/api/herramientas/*`) | Prisma directo | Exponen datos para consumo externo (testing, futuros clientes mobile). |
-| Client Components | No acceden a datos | Solo manejan interactividad (filtros, navegación). Reciben datos via props desde Server Components. |
+```
+┌─────────────────────────────────────────────────────────────┐
+│            Presentation Layer (src/presentation/)            │
+│  Pages, API Routes, UI Components, Zod input validation     │
+├─────────────────────────────────────────────────────────────┤
+│            Infrastructure Layer (src/infrastructure/)        │
+│  PrismaClient, Repository implementations, Mappers          │
+├─────────────────────────────────────────────────────────────┤
+│            Application Layer (src/application/)              │
+│  Query Handlers, DTOs, Use Case orchestration               │
+├─────────────────────────────────────────────────────────────┤
+│            Domain Layer (src/domain/)                        │
+│  Entity, Value Objects, Repository interface (PORT), Errors  │
+└─────────────────────────────────────────────────────────────┘
+```
 
-> **Regla:** Los Server Components NUNCA llaman a los API routes propios (`fetch("/api/...")`). Usan Prisma directo. Los API routes existen para consumo externo y testing.
+| Capa | Responsabilidad | Depende de | NO depende de |
+|------|----------------|-----------|--------------|
+| **Domain** | Entidad `Herramienta`, value objects (`NivelClasificacion`, `EstadoHerramienta`), interface `IHerramientaRepository`, errores tipados | Nada | Framework, Prisma, Zod, Next.js |
+| **Application** | Query handlers (`ListHerramientas`, `GetHerramientaById`), DTOs de response | Solo Domain | Infrastructure, Presentation |
+| **Infrastructure** | `PrismaHerramientaRepository` (implementa el PORT), singleton PrismaClient, mappers | Domain, Application | Presentation |
+| **Presentation** | Pages (Server Components), API routes (thin), UI components, Zod validation | Application (via query handlers) | Domain directo, Infrastructure directo |
+
+> **Dependency Rule:** Las dependencias SIEMPRE apuntan hacia adentro. Domain no tiene dependencias externas.
+
+| Consumidor | Accede vía | Patrón |
+|------------|-----------|--------|
+| Server Components (`CatalogoPage`, `ToolDetailPage`) | Query Handler → Repository interface → Prisma impl | Application → Domain port → Infrastructure adapter |
+| API route handlers (`/api/herramientas/*`) | Mismo: Query Handler | Presentation thin → Application |
+| Client Components | No acceden a datos | Solo interactividad. Reciben datos via props. |
 
 ---
 
@@ -165,10 +189,12 @@ El archivo `prisma/seed.ts` cargará las 27 herramientas activas + 4 retiradas d
 
 ---
 
-## 4. Validaciones Zod
+## 4. Validaciones (por capa)
+
+### Presentation Layer — Zod (input HTTP parsing)
 
 ```typescript
-// src/lib/validations/herramienta.ts
+// src/presentation/validations/herramienta.validation.ts
 
 import { z } from "zod";
 
@@ -201,35 +227,125 @@ export const ListHerramientasQuerySchema = z.object({
 export const GetHerramientaParamsSchema = z.object({
   id: z.coerce.number().int().positive(),
 });
+```
 
-// Response shapes (para type inference)
-export const HerramientaSchema = z.object({
-  id: z.number(),
-  nombre: z.string(),
-  proveedor: z.string(),
-  categoria: z.string().nullable(),
-  nivelMaximo: NivelClasificacion.nullable(),
-  estado: EstadoHerramienta,
-  dpa: DpaEstado,
-  razonRetiro: z.string().nullable(),
-  creadoEn: z.string(),
-  actualizadoEn: z.string(),
-});
+### Domain Layer — Entity con factory method + Value Objects
 
-export const HerramientaListItemSchema = HerramientaSchema.omit({
-  dpa: true,
-  creadoEn: true,
-  actualizadoEn: true,
-});
+```typescript
+// src/domain/herramienta/herramienta.entity.ts
 
-export const ListHerramientasResponseSchema = z.object({
-  data: z.array(HerramientaListItemSchema),
-  count: z.number(),
-});
+import { NivelClasificacion } from "./value-objects/nivel-clasificacion.vo";
+import { EstadoHerramienta } from "./value-objects/estado-herramienta.vo";
 
-export type Herramienta = z.infer<typeof HerramientaSchema>;
-export type HerramientaListItem = z.infer<typeof HerramientaListItemSchema>;
-export type ListHerramientasQuery = z.infer<typeof ListHerramientasQuerySchema>;
+export interface HerramientaProps {
+  id: number;
+  nombre: string;
+  proveedor: string;
+  categoria: string | null;
+  nivelMaximo: NivelClasificacion | null;
+  estado: EstadoHerramienta;
+  dpa: string;
+  razonRetiro: string | null;
+  creadoEn: Date;
+  actualizadoEn: Date;
+}
+
+export class Herramienta {
+  private constructor(private readonly props: HerramientaProps) {}
+
+  static create(props: HerramientaProps): Herramienta {
+    return new Herramienta(props);
+  }
+
+  get id() { return this.props.id; }
+  get nombre() { return this.props.nombre; }
+  get proveedor() { return this.props.proveedor; }
+  get categoria() { return this.props.categoria; }
+  get nivelMaximo() { return this.props.nivelMaximo; }
+  get estado() { return this.props.estado; }
+  get dpa() { return this.props.dpa; }
+  get razonRetiro() { return this.props.razonRetiro; }
+  get creadoEn() { return this.props.creadoEn; }
+  get actualizadoEn() { return this.props.actualizadoEn; }
+
+  get estaRetirada(): boolean { return this.estado === "Retirada"; }
+  get esCondicional(): boolean { return this.estado === "Condicional"; }
+}
+```
+
+```typescript
+// src/domain/herramienta/value-objects/nivel-clasificacion.vo.ts
+export type NivelClasificacion = "Publica" | "Interna" | "Confidencial" | "Restringida";
+
+// src/domain/herramienta/value-objects/estado-herramienta.vo.ts
+export type EstadoHerramienta = "Activa" | "Retirada" | "Condicional";
+```
+
+### Domain Layer — Repository interface (PORT)
+
+```typescript
+// src/domain/herramienta/herramienta.repository.ts
+
+import { Herramienta } from "./herramienta.entity";
+import { NivelClasificacion } from "./value-objects/nivel-clasificacion.vo";
+import { EstadoHerramienta } from "./value-objects/estado-herramienta.vo";
+
+export interface HerramientaFilters {
+  nivelMaximo?: NivelClasificacion;
+  estado?: EstadoHerramienta;
+}
+
+export interface IHerramientaRepository {
+  findAll(filters?: HerramientaFilters): Promise<Herramienta[]>;
+  findById(id: number): Promise<Herramienta | null>;
+}
+```
+
+### Application Layer — Query Handlers + DTOs
+
+```typescript
+// src/application/herramientas/dtos/herramienta-list-item.dto.ts
+export interface HerramientaListItemDto {
+  id: number;
+  nombre: string;
+  proveedor: string;
+  categoria: string | null;
+  nivelMaximo: string | null;
+  estado: string;
+  razonRetiro: string | null;
+}
+
+// src/application/herramientas/dtos/herramienta-detail.dto.ts
+export interface HerramientaDetailDto extends HerramientaListItemDto {
+  dpa: string;
+  creadoEn: string; // ISO 8601
+  actualizadoEn: string; // ISO 8601
+}
+```
+
+```typescript
+// src/application/herramientas/queries/list-herramientas.handler.ts
+
+import { IHerramientaRepository, HerramientaFilters } from "@/domain/herramienta/herramienta.repository";
+import { HerramientaListItemDto } from "../dtos/herramienta-list-item.dto";
+
+export class ListHerramientasHandler {
+  constructor(private readonly repository: IHerramientaRepository) {}
+
+  async execute(filters?: HerramientaFilters): Promise<{ data: HerramientaListItemDto[]; count: number }> {
+    const herramientas = await this.repository.findAll(filters);
+    const data = herramientas.map(h => ({
+      id: h.id,
+      nombre: h.nombre,
+      proveedor: h.proveedor,
+      categoria: h.categoria,
+      nivelMaximo: h.nivelMaximo,
+      estado: h.estado,
+      razonRetiro: h.razonRetiro,
+    }));
+    return { data, count: data.length };
+  }
+}
 ```
 
 ---
@@ -264,6 +380,7 @@ export type ListHerramientasQuery = z.infer<typeof ListHerramientasQuerySchema>;
 
 | Decisión | Justificación |
 |----------|---------------|
+| **Clean Architecture (4 capas)** | El proyecto seguirá creciendo (intake, CRUD admin, notificaciones). Invertir en la estructura ahora evita refactoring costoso post-MVP. Domain puro habilita tests unitarios sin BD. Repository pattern permite swap de Prisma sin tocar lógica. |
 | **Read-only API (sin CRUD)** | El MVP es solo consulta. No hay endpoints de escritura. El catálogo se alimenta por seed/migración, no por UI. Esto simplifica seguridad (no hay auth en MVP) y reduce superficie de ataque. |
 | **Server Components por defecto** | El catálogo es contenido estático que cambia con poca frecuencia. Server Components eliminan JS del bundle del cliente, mejoran SEO y performance. Solo `FilterBar` y `BackButton` son Client Components por requerir interactividad. |
 | **SQLite en desarrollo** | 31 registros totales. SQLite es suficiente para dev/local y el seed. En staging/producción se usa PostgreSQL vía Neon (según `standards.md`). Prisma abstrae la diferencia. |
@@ -293,40 +410,83 @@ Ninguna fuera del stack base (`standards.md`). No se requieren paquetes nuevos.
 
 ---
 
-## Archivos a crear
+## Archivos a crear (Clean Architecture)
 
 ```
 src/
-├── app/
-│   ├── catalogo/
-│   │   ├── page.tsx
-│   │   ├── loading.tsx
-│   │   ├── error.tsx
-│   │   └── [id]/
-│   │       ├── page.tsx
-│   │       ├── loading.tsx
-│   │       └── not-found.tsx
-│   └── api/
-│       └── herramientas/
-│           ├── route.ts
-│           └── [id]/
-│               └── route.ts
-├── components/
-│   ├── ToolList.tsx
-│   ├── ToolCard.tsx
-│   ├── SemaforoIndicator.tsx
-│   ├── NivelBadge.tsx
-│   ├── FilterBar.tsx
-│   ├── BackButton.tsx
-│   ├── EmptyState.tsx
-│   └── ErrorState.tsx
-├── lib/
-│   ├── prisma.ts          → Singleton de PrismaClient
+├── domain/                                    ← CAPA DOMAIN (cero dependencias externas)
+│   ├── herramienta/
+│   │   ├── herramienta.entity.ts             ← Entidad con factory method
+│   │   ├── herramienta.repository.ts         ← Interface PORT (IHerramientaRepository)
+│   │   ├── herramienta.errors.ts             ← Errores tipados del dominio
+│   │   └── value-objects/
+│   │       ├── nivel-clasificacion.vo.ts     ← Type + constantes
+│   │       └── estado-herramienta.vo.ts      ← Type + constantes
+│   └── abstractions/
+│       └── result.ts                         ← Result<T> pattern (para post-MVP commands)
+│
+├── application/                               ← CAPA APPLICATION (depende solo de Domain)
+│   └── herramientas/
+│       ├── queries/
+│       │   ├── list-herramientas.handler.ts  ← Orquesta: repo.findAll → map → DTOs
+│       │   └── get-herramienta-by-id.handler.ts
+│       └── dtos/
+│           ├── herramienta-list-item.dto.ts  ← Shape del listado (sin DPA)
+│           └── herramienta-detail.dto.ts     ← Shape del detalle (con DPA + timestamps)
+│
+├── infrastructure/                            ← CAPA INFRASTRUCTURE (implementa PORTs)
+│   ├── database/
+│   │   └── prisma.client.ts                  ← Singleton PrismaClient
+│   ├── repositories/
+│   │   └── prisma-herramienta.repository.ts  ← ADAPTER: implementa IHerramientaRepository
+│   └── mappers/
+│       └── herramienta.mapper.ts             ← Prisma model → Domain entity
+│
+├── presentation/                              ← CAPA PRESENTATION (UI + API, thin)
+│   ├── api/
+│   │   └── herramientas/
+│   │       ├── route.ts                      ← GET /api/herramientas (parsea → handler → responde)
+│   │       └── [id]/
+│   │           └── route.ts                  ← GET /api/herramientas/[id]
+│   ├── pages/
+│   │   └── catalogo/
+│   │       ├── page.tsx                      ← CatalogoPage (SC, llama handler)
+│   │       ├── loading.tsx                   ← Skeleton
+│   │       ├── error.tsx                     ← Error boundary (CC)
+│   │       └── [id]/
+│   │           ├── page.tsx                  ← ToolDetailPage
+│   │           ├── loading.tsx               ← Skeleton detalle
+│   │           └── not-found.tsx             ← "Herramienta no encontrada"
+│   ├── components/
+│   │   ├── ToolList.tsx
+│   │   ├── ToolCard.tsx
+│   │   ├── SemaforoIndicator.tsx
+│   │   ├── NivelBadge.tsx
+│   │   ├── FilterBar.tsx
+│   │   ├── BackButton.tsx
+│   │   ├── EmptyState.tsx
+│   │   └── ErrorState.tsx
 │   └── validations/
-│       └── herramienta.ts
-└── types/
-    └── herramienta.ts
+│       └── herramienta.validation.ts         ← Zod schemas (solo parseo HTTP input)
+│
 prisma/
 ├── schema.prisma
 └── seed.ts
 ```
+
+### Nota sobre Next.js App Router + Clean Architecture
+
+Next.js requiere que las páginas estén en `src/app/` para el routing. Se usa un **re-export pattern**:
+
+```typescript
+// src/app/catalogo/page.tsx (Next.js routing requirement)
+export { default } from "@/presentation/pages/catalogo/page";
+export { metadata } from "@/presentation/pages/catalogo/page";
+```
+
+Alternativamente, si el equipo prefiere colocar las pages directamente en `src/app/` (más idiomático para Next.js), la capa Presentation se divide:
+- `src/app/` → Solo pages y API routes (thin wrappers que llaman handlers)
+- `src/presentation/components/` → UI components
+- `src/presentation/validations/` → Zod schemas
+
+Ambos approaches cumplen la Dependency Rule. El equipo elige durante implementación.
