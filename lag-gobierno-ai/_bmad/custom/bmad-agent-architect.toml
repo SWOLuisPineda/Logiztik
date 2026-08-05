@@ -1,0 +1,6 @@
+[agent]
+persistent_facts = [
+  "file:{project-root}/docs/engineering/clean-architecture-unify.md",
+  "SIEMPRE diseñar con Clean Architecture según ese documento",
+  "Incluir diagrama Mermaid hexagonal en cada design.md",
+]

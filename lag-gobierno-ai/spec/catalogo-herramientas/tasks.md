@@ -1,268 +1,291 @@
 # Tasks — Catálogo de Herramientas AI Aprobadas
 
-> Generado desde: design.md (v3 — post 3 revisiones adversariales, 0 bloqueantes)
-> Cada tarea es atómica (<2h), ordenada por dependencias.
+> Generado desde: design.md (Clean Architecture — 4 capas)
+> Cada tarea es atómica (<2h), ordenada por dependencias (capas internas primero).
 > Criterio de hecho (Done) explícito en cada una.
 
 ---
 
-## Fase 1: Infraestructura y modelo de datos
+## Fase 1: Domain Layer (cero dependencias externas)
 
-- [ ] **1. Crear singleton de PrismaClient**
-  - Archivo: `src/lib/prisma.ts`
-  - Exportar instancia única de PrismaClient con manejo de hot-reload en desarrollo (evitar múltiples instancias en dev con `globalThis`).
-  - **Done:** Archivo compila. Import `import { prisma } from "@/lib/prisma"` funciona sin errores.
+- [ ] **1. Crear value objects del dominio**
+  - Archivos:
+    - `src/domain/herramienta/value-objects/nivel-clasificacion.vo.ts`
+    - `src/domain/herramienta/value-objects/estado-herramienta.vo.ts`
+  - Exportar types: `NivelClasificacion = "Publica" | "Interna" | "Confidencial" | "Restringida"` y `EstadoHerramienta = "Activa" | "Retirada" | "Condicional"`.
+  - Exportar constantes array para iteración: `NIVELES`, `ESTADOS`.
+  - **Done:** Archivos compilan. NO importan ningún paquete externo (ni Zod, ni Prisma). Los types son importables desde `@/domain/herramienta/value-objects/`.
 
-- [ ] **2. Crear schema Prisma con modelo `Herramienta`**
+- [ ] **2. Crear entidad `Herramienta` con factory method**
+  - Archivo: `src/domain/herramienta/herramienta.entity.ts`
+  - Clase con constructor privado + `static create(props): Herramienta`.
+  - Props: id, nombre, proveedor, categoria (nullable), nivelMaximo (nullable), estado, dpa, razonRetiro (nullable), creadoEn, actualizadoEn.
+  - Getters para cada campo. Computed: `estaRetirada`, `esCondicional`.
+  - **Done:** Compila. NO importa nada externo. Factory method crea instancia correctamente. Getters retornan valores.
+
+- [ ] **3. Crear interface de repositorio (PORT)**
+  - Archivo: `src/domain/herramienta/herramienta.repository.ts`
+  - Interface `IHerramientaRepository` con:
+    - `findAll(filters?: HerramientaFilters): Promise<Herramienta[]>`
+    - `findById(id: number): Promise<Herramienta | null>`
+  - Type `HerramientaFilters = { nivelMaximo?: NivelClasificacion; estado?: EstadoHerramienta }`.
+  - **Done:** Compila. Solo importa de `./herramienta.entity` y `./value-objects/`. Cero deps externas.
+
+- [ ] **4. Crear errores tipados del dominio**
+  - Archivo: `src/domain/herramienta/herramienta.errors.ts`
+  - Exportar: `HerramientaNotFoundError`, `NivelInvalidoError`.
+  - Cada error extiende Error con `code` y `description`.
+  - **Done:** Compila. Errores tienen `name`, `code` y `message` descriptivos.
+
+---
+
+## Fase 2: Application Layer (depende solo de Domain)
+
+- [ ] **5. Crear DTOs de response**
+  - Archivos:
+    - `src/application/herramientas/dtos/herramienta-list-item.dto.ts`
+    - `src/application/herramientas/dtos/herramienta-detail.dto.ts`
+  - `HerramientaListItemDto`: id, nombre, proveedor, categoria, nivelMaximo, estado, razonRetiro.
+  - `HerramientaDetailDto`: extiende list item + dpa, creadoEn (ISO), actualizadoEn (ISO).
+  - **Done:** Compilan. Son interfaces planas (serializables). No importan de Infrastructure ni Presentation.
+
+- [ ] **6. Crear `ListHerramientasHandler` (query)**
+  - Archivo: `src/application/herramientas/queries/list-herramientas.handler.ts`
+  - Recibe `IHerramientaRepository` por constructor (DI).
+  - Método `execute(filters?)`: llama `repository.findAll(filters)`, mapea entidades → DTOs, retorna `{ data, count }`.
+  - Orden: Activas (nombre ASC) → Condicionales → Retiradas (lógica en el handler o delegada al repo).
+  - **Done:** Compila. Solo importa de `@/domain/`. Retorna `{ data: HerramientaListItemDto[], count: number }`.
+
+- [ ] **7. Crear `GetHerramientaByIdHandler` (query)**
+  - Archivo: `src/application/herramientas/queries/get-herramienta-by-id.handler.ts`
+  - Recibe `IHerramientaRepository` por constructor.
+  - Método `execute(id: number)`: llama `repository.findById(id)`, retorna `HerramientaDetailDto | null`.
+  - **Done:** Compila. Retorna null si no existe (el caller decide qué hacer). Solo importa de `@/domain/` y `../dtos/`.
+
+---
+
+## Fase 3: Infrastructure Layer (implementa PORTs)
+
+- [ ] **8. Crear schema Prisma con modelo `Herramienta`**
   - Archivo: `prisma/schema.prisma`
   - Campos: id, nombre, proveedor, categoria (`String?`), nivelMaximo (`String?`), estado, dpa (default "No aplica"), razonRetiro (`String?`), creadoEn, actualizadoEn.
   - Constraint: `@@unique([nombre, proveedor], name: "nombre_proveedor")`.
-  - Tabla: `@@map("herramientas")`.
   - Datasource: SQLite para dev.
-  - **Done:** `npx prisma validate` pasa sin errores. Campos nullable correctos. Constraint unique con nombre explícito presente.
+  - **Done:** `npx prisma validate` pasa. Campos nullable correctos. Constraint con nombre explícito.
 
-- [ ] **3. Ejecutar migración inicial**
+- [ ] **9. Ejecutar migración inicial**
   - Comando: `npx prisma migrate dev --name init`
-  - **Done:** Migración creada en `prisma/migrations/`, BD SQLite generada, Prisma Client regenerado.
+  - **Done:** Migración creada. BD SQLite generada. Prisma Client regenerado.
 
-- [ ] **4. Crear archivo seed idempotente con las 31 herramientas**
+- [ ] **10. Crear singleton de PrismaClient**
+  - Archivo: `src/infrastructure/database/prisma.client.ts`
+  - Exportar instancia única con manejo de hot-reload (`globalThis`).
+  - **Done:** Importable desde `@/infrastructure/database/prisma.client`.
+
+- [ ] **11. Crear mapper Prisma → Domain Entity**
+  - Archivo: `src/infrastructure/mappers/herramienta.mapper.ts`
+  - Función `toDomain(prismaModel): Herramienta` — convierte el model de Prisma a la entidad de dominio.
+  - Función `toListItemDto(entity): HerramientaListItemDto` — convierte entidad a DTO de listado.
+  - Función `toDetailDto(entity): HerramientaDetailDto` — convierte entidad a DTO de detalle (timestamps → ISO string).
+  - **Done:** Compila. Mapea correctamente nulls y tipos Date → string ISO.
+
+- [ ] **12. Crear `PrismaHerramientaRepository` (ADAPTER)**
+  - Archivo: `src/infrastructure/repositories/prisma-herramienta.repository.ts`
+  - Implementa `IHerramientaRepository`.
+  - `findAll(filters?)`: Prisma `findMany` con `where` dinámico + `orderBy` (estado custom sort + nombre ASC). Mapea resultado con `herramientaMapper.toDomain()`.
+  - `findById(id)`: Prisma `findUnique`. Retorna null si no existe.
+  - **Done:** Implementa la interface. Filtros AND si ambos params presentes. Orden: Activas → Condicionales → Retiradas.
+
+- [ ] **13. Crear archivo seed idempotente**
   - Archivo: `prisma/seed.ts`
-  - Usar `prisma.herramienta.upsert()` con `where: { nombre_proveedor: { nombre: "...", proveedor: "..." } }`.
-  - Transformaciones documentadas en design.md:
-    - `"Activa (condicional)"` → `"Condicional"`
-    - Categoría `"—"` → `null`
-    - Nivel `"—"` → `null`
-    - Retiradas: `categoria: null`, `nivelMaximo: null`, `razonRetiro` según fuente
-    - DPA: `"No aplica"` para todas
+  - `upsert` con `where: { nombre_proveedor: { nombre, proveedor } }`.
+  - Transformaciones: "Activa (condicional)" → "Condicional", "—" → null.
   - Configurar `prisma.seed` en `package.json`.
-  - **Done:** `npx prisma db seed` ejecuta sin errores. Se puede ejecutar 2 veces consecutivas sin duplicar. `SELECT COUNT(*) FROM herramientas` retorna 31.
+  - **Done:** `npx prisma db seed` ejecuta 2 veces sin duplicar. 31 registros.
 
 ---
 
-## Fase 2: Validaciones y tipos compartidos
+## Fase 4: Presentation Layer — Validaciones y API
 
-- [ ] **5. Crear schemas Zod de validación**
-  - Archivo: `src/lib/validations/herramienta.ts`
-  - Enums: `NivelClasificacion`, `EstadoHerramienta`, `DpaEstado`.
-  - Schemas: `ListHerramientasQuerySchema` (con `nivel` y `estado` opcionales), `GetHerramientaParamsSchema`, `HerramientaSchema` (categoria y nivelMaximo nullable), `HerramientaListItemSchema`, `ListHerramientasResponseSchema`.
-  - Tipos exportados: `Herramienta`, `HerramientaListItem`, `ListHerramientasQuery`.
-  - **Done:** Archivo compila sin errores TS. Los schemas aceptan `null` para categoria y nivelMaximo. Tipos inferidos son importables.
+- [ ] **14. Crear Zod schemas de validación HTTP**
+  - Archivo: `src/presentation/validations/herramienta.validation.ts`
+  - `ListHerramientasQuerySchema` (nivel + estado opcionales), `GetHerramientaParamsSchema` (id entero positivo).
+  - **Done:** Compila. `safeParse` valida correctamente params válidos e inválidos.
 
-- [ ] **6. Crear archivo de tipos complementarios**
-  - Archivo: `src/types/herramienta.ts`
-  - Re-exportar tipos Zod inferidos para uso en componentes.
-  - **Done:** Archivo compila. Los tipos son importables desde `@/types/herramienta`.
+- [ ] **15. Implementar GET /api/herramientas**
+  - Archivo: `src/presentation/api/herramientas/route.ts` (o `src/app/api/herramientas/route.ts` con re-export)
+  - Thin: parsea query params con Zod → instancia handler con repo → llama `execute(filters)` → retorna JSON.
+  - Errores: 400 descriptivo, 500 genérico (`"Error interno del servidor"`), `console.error` server-side.
+  - **Done:** `GET /api/herramientas` → 200 (31 items). `?nivel=Publica` → 5. `?nivel=Invalido` → 400. BD caída → 500.
 
----
-
-## Fase 3: API endpoints
-
-- [ ] **7. Implementar GET /api/herramientas**
-  - Archivo: `src/app/api/herramientas/route.ts`
-  - Validar query params `nivel` y `estado` con Zod `safeParse`.
-  - Error 400: mensaje descriptivo (ej: "El parámetro 'nivel' debe ser: Publica, Interna, Confidencial o Restringida").
-  - Filtrar con Prisma `where` según params (AND si ambos presentes).
-  - Ordenar: Activas primero (nombre ASC), luego Condicionales (nombre ASC), luego Retiradas (nombre ASC).
-  - Error 500: `{ error: "Error interno del servidor" }` + `console.error` server-side.
-  - Retornar `{ data, count }`.
-  - **Done:** `GET /api/herramientas` → 200 con 31 items ordenados. `?nivel=Publica` → 5 resultados. `?estado=Retirada` → 4 resultados. `?nivel=Invalido` → 400 con mensaje claro. BD caída → 500 sin exponer detalle.
-
-- [ ] **8. Implementar GET /api/herramientas/[id]**
-  - Archivo: `src/app/api/herramientas/[id]/route.ts`
-  - Validar param `id` con Zod (entero positivo).
-  - Buscar con `prisma.herramienta.findUnique`.
-  - Retornar objeto completo incluyendo DPA y timestamps ISO 8601.
-  - Errores: 400 (id inválido), 404 ("Herramienta no encontrada"), 500 (genérico).
-  - **Done:** `/api/herramientas/1` → 200. `/api/herramientas/999` → 404. `/api/herramientas/abc` → 400. Fallo BD → 500.
+- [ ] **16. Implementar GET /api/herramientas/[id]**
+  - Archivo: `src/presentation/api/herramientas/[id]/route.ts`
+  - Thin: valida id con Zod → handler.execute(id) → 200 o 404 o 400 o 500.
+  - **Done:** `/1` → 200 completo. `/999` → 404. `/abc` → 400.
 
 ---
 
-## Fase 4: Componentes de UI — atómicos
+## Fase 5: Presentation Layer — Componentes atómicos
 
-- [ ] **9. Crear componente `SemaforoIndicator`**
-  - Archivo: `src/components/SemaforoIndicator.tsx`
-  - Server Component. Props: `estado: "Activa" | "Retirada" | "Condicional"`.
-  - Colores: verde `#86B81C` (Activa), amarillo `#F59E0B` (Condicional), rojo `#DC2626` (Retirada).
-  - Renderizar: círculo de color + texto ("Autorizada" / "Condicional" / "No autorizada") + `aria-label`.
-  - **Done:** Renderiza 3 estados. Tiene aria-label descriptivo. No depende solo del color (WCAG AA).
+- [ ] **17. Crear componente `SemaforoIndicator`**
+  - Archivo: `src/presentation/components/SemaforoIndicator.tsx`
+  - Server Component. Props: `estado: EstadoHerramienta`.
+  - Colores: verde `#86B81C`, amarillo `#F59E0B`, rojo `#DC2626`. Texto + aria-label.
+  - **Done:** 3 estados renderizados. WCAG AA (no solo color).
 
-- [ ] **10. Crear componente `NivelBadge`**
-  - Archivo: `src/components/NivelBadge.tsx`
+- [ ] **18. Crear componente `NivelBadge`**
+  - Archivo: `src/presentation/components/NivelBadge.tsx`
   - Server Component. Props: `nivel: string | null`.
-  - Si null: badge gris con texto "Sin clasificar".
-  - Si valor: badge con color diferenciado (Pública=verde claro, Interna=azul, Confidencial=amarillo, Restringida=rojo).
-  - **Done:** Renderiza 5 variantes (4 niveles + null). Compila sin errores.
+  - Null → badge gris "Sin clasificar". 4 niveles con color diferenciado.
+  - **Done:** 5 variantes (4 niveles + null).
 
-- [ ] **11. Crear componente `EmptyState`**
-  - Archivo: `src/components/EmptyState.tsx`
-  - Server Component. Mensaje: "No hay herramientas registradas actualmente".
-  - **Done:** Renderiza mensaje. Sin props requeridos.
+- [ ] **19. Crear componente `EmptyState`**
+  - Archivo: `src/presentation/components/EmptyState.tsx`
+  - Mensaje: "No hay herramientas registradas actualmente".
+  - **Done:** Renderiza mensaje.
 
-- [ ] **12. Crear componente `ErrorState`**
-  - Archivo: `src/components/ErrorState.tsx`
-  - Client Component (`"use client"`). Props: `reset: () => void`.
-  - Mensaje: "Ocurrió un error al cargar los datos."
-  - Botón "Reintentar" que llama a `reset()`.
-  - Es CC porque se usa dentro de `error.tsx` (requerido por Next.js).
-  - **Done:** Componente renderiza mensaje + botón. No expone detalles técnicos. Incluye `"use client"`.
+- [ ] **20. Crear componente `ErrorState`**
+  - Archivo: `src/presentation/components/ErrorState.tsx`
+  - Client Component. Props: `reset: () => void`. Botón "Reintentar".
+  - **Done:** Incluye `"use client"`. Renderiza mensaje + botón.
 
-- [ ] **13. Crear componente `BackButton`**
-  - Archivo: `src/components/BackButton.tsx`
-  - Client Component (`"use client"`). Usa `Link` de `next/link` con href a `/catalogo`.
-  - Lee `useSearchParams()` para preservar param `nivel` si existe en la URL actual: `/catalogo?nivel=X`.
-  - **Done:** Incluye `"use client"`. Renderiza link "Volver al catálogo". Navega a `/catalogo` (no `router.back()`). Preserva nivel si está presente.
+- [ ] **21. Crear componente `BackButton`**
+  - Archivo: `src/presentation/components/BackButton.tsx`
+  - Client Component. `Link` a `/catalogo` (no `router.back()`). Preserva `?nivel=` si presente.
+  - **Done:** Navega a `/catalogo`. Preserva filtro.
 
-- [ ] **14. Crear componente `FilterBar`**
-  - Archivo: `src/components/FilterBar.tsx`
-  - Client Component (`"use client"`).
-  - `<label>` visible: "Filtrar por nivel de clasificación".
-  - `<select>` con opciones: "Todos los niveles", Pública, Interna, Confidencial, Restringida.
-  - Usa `useSearchParams` + `useRouter` para actualizar/remover query `?nivel=`.
-  - **Done:** Seleccionar nivel actualiza URL. "Todos los niveles" remueve param. El select tiene label visible y asociado (`htmlFor`).
+- [ ] **22. Crear componente `FilterBar`**
+  - Archivo: `src/presentation/components/FilterBar.tsx`
+  - Client Component. `<label>` + `<select>` con opciones de nivel.
+  - `useSearchParams` + `useRouter` para actualizar URL.
+  - **Done:** Seleccionar nivel actualiza URL. "Todos" remueve param. Label accesible.
 
 ---
 
-## Fase 5: Componentes de UI — compuestos
+## Fase 6: Presentation Layer — Componentes compuestos
 
-- [ ] **15. Crear componente `ToolCard`**
-  - Archivo: `src/components/ToolCard.tsx`
-  - Server Component. Props: `HerramientaListItem`.
+- [ ] **23. Crear componente `ToolCard`**
+  - Archivo: `src/presentation/components/ToolCard.tsx`
+  - Server Component. Props: `HerramientaListItemDto`.
   - Renderiza: nombre (link a `/catalogo/[id]`), proveedor, `SemaforoIndicator`, `NivelBadge`.
-  - Si categoria null: muestra "Sin categoría" en texto secundario.
-  - Si estado "Retirada": muestra `razonRetiro` inline con estilo advertencia.
-  - Estilo: card según design-system (`rounded-lg bg-white border border-[#E2E8E0] shadow-sm p-6`).
-  - **Done:** Muestra todos los campos. Link funcional. Maneja nulls sin errores. Card con estilos del design system.
+  - Retirada → razón inline. Null categoria → "Sin categoría".
+  - Card: `rounded-lg bg-white border border-[#E2E8E0] shadow-sm p-6`.
+  - **Done:** Campos completos. Link funcional. Nulls manejados.
 
-- [ ] **16. Crear componente `ToolList`**
-  - Archivo: `src/components/ToolList.tsx`
-  - Server Component. Props: `herramientas: HerramientaListItem[]`.
-  - Grid responsivo: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`.
-  - Si array vacío → renderiza `EmptyState`.
-  - **Done:** Renderiza N tarjetas en grid responsivo. Array vacío muestra `EmptyState`. 3 cols en desktop, 2 en tablet, 1 en mobile.
+- [ ] **24. Crear componente `ToolList`**
+  - Archivo: `src/presentation/components/ToolList.tsx`
+  - Server Component. Props: `HerramientaListItemDto[]`.
+  - Grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`.
+  - Array vacío → `EmptyState`.
+  - **Done:** Grid responsivo. EmptyState en vacío.
 
 ---
 
-## Fase 6: Páginas y error boundaries
+## Fase 7: Presentation Layer — Páginas
 
-- [ ] **17. Crear loading.tsx para catálogo**
+- [ ] **25. Crear loading.tsx para catálogo**
   - Archivo: `src/app/catalogo/loading.tsx`
-  - Skeleton o spinner que Next.js muestra automáticamente durante fetch.
-  - **Done:** Al navegar a `/catalogo`, se muestra skeleton antes del contenido real.
+  - Skeleton/spinner.
+  - **Done:** Se muestra durante fetch.
 
-- [ ] **18. Crear error.tsx para catálogo**
+- [ ] **26. Crear error.tsx para catálogo**
   - Archivo: `src/app/catalogo/error.tsx`
-  - Client Component (`"use client"`). Recibe prop `reset` de Next.js.
-  - Renderiza `ErrorState` pasando `reset`.
-  - **Done:** Si Prisma falla, muestra ErrorState con botón reintentar (no error críptico).
+  - Client Component. Renderiza `ErrorState` con `reset`.
+  - **Done:** BD falla → ErrorState visible, no error críptico.
 
-- [ ] **19. Implementar página `CatalogoPage`**
+- [ ] **27. Implementar página `CatalogoPage`**
   - Archivo: `src/app/catalogo/page.tsx`
   - Server Component. Lee `searchParams.nivel`.
-  - Consulta Prisma directamente (NO fetch a API — regla de acceso a datos).
-  - Orden: Activas → Condicionales → Retiradas, nombre ASC dentro de cada grupo.
+  - Instancia `ListHerramientasHandler` con `PrismaHerramientaRepository` (composición en la page).
   - Renderiza `FilterBar` + `ToolList`.
-  - Metadata: `export const metadata = { title: "Catálogo de Herramientas AI — LAG" }`.
-  - **Done:** `/catalogo` muestra 31 herramientas en orden correcto. `?nivel=Publica` filtra. Título del tab correcto. Usa Prisma directo.
+  - `export const metadata = { title: "Catálogo de Herramientas AI — LAG" }`.
+  - **Done:** `/catalogo` → 31 herramientas. `?nivel=Publica` → 5. Metadata correcta. Usa handler (no Prisma directo).
 
-- [ ] **20. Crear loading.tsx para detalle**
+- [ ] **28. Crear loading.tsx para detalle**
   - Archivo: `src/app/catalogo/[id]/loading.tsx`
-  - Skeleton para la página de detalle.
-  - **Done:** Al navegar a `/catalogo/1`, se muestra skeleton durante el fetch.
+  - **Done:** Skeleton visible durante fetch.
 
-- [ ] **21. Crear not-found.tsx para detalle**
+- [ ] **29. Crear not-found.tsx para detalle**
   - Archivo: `src/app/catalogo/[id]/not-found.tsx`
-  - Mensaje: "Herramienta no encontrada" + link a `/catalogo`.
-  - **Done:** ID inexistente muestra not-found con link de vuelta.
+  - "Herramienta no encontrada" + link a `/catalogo`.
+  - **Done:** ID inexistente → not-found.
 
-- [ ] **22. Implementar página `ToolDetailPage`**
+- [ ] **30. Implementar página `ToolDetailPage`**
   - Archivo: `src/app/catalogo/[id]/page.tsx`
-  - Server Component. Lee param `id`. Valida con Zod. Consulta Prisma `findUnique`.
-  - Si no existe: `notFound()`.
-  - Si existe: muestra todos los campos + `SemaforoIndicator` + `NivelBadge` + DPA + `BackButton`.
-  - Si DPA es "No aplica": muestra "Información de DPA no disponible aún".
-  - Si retirada: banner rojo "Esta herramienta NO está autorizada para uso en LAG" + razón.
-  - Metadata dinámica: `generateMetadata` con nombre de herramienta.
-  - **Done:** `/catalogo/1` → detalle completo. Retirada → banner. ID inexistente → not-found. Tab muestra nombre de herramienta.
+  - Server Component. Valida `id`. Instancia `GetHerramientaByIdHandler`.
+  - Si null → `notFound()`. Si existe → todos los campos + `SemaforoIndicator` + `NivelBadge` + DPA + `BackButton`.
+  - Retirada → banner rojo. DPA "No aplica" → "Información no disponible aún".
+  - `generateMetadata` dinámica.
+  - **Done:** Detalle completo. Banner rojo en retiradas. Not-found para inexistentes. Tab muestra nombre.
 
 ---
 
-## Fase 7: Layout y calidad final
+## Fase 8: Layout y calidad final
 
-- [ ] **23. Crear layout del módulo catálogo**
+- [ ] **31. Crear layout del módulo catálogo**
   - Archivo: `src/app/catalogo/layout.tsx`
-  - Wrapper: `max-w-5xl mx-auto px-4 py-8`, fondo blanco, tipografía Inter.
-  - **Done:** Layout aplica contenedor centrado. Páginas hijas heredan el estilo.
+  - `max-w-5xl mx-auto px-4 py-8`, fondo blanco, Inter.
+  - **Done:** Contenedor centrado. Hijas heredan estilo.
 
-- [ ] **24. Verificar accesibilidad (WCAG AA)**
+- [ ] **32. Verificar accesibilidad (WCAG AA)**
+  - Checklist: aria-labels, labels en forms, contraste ≥4.5:1, no solo color.
+  - **Done:** Todos los componentes interactivos accesibles.
+
+- [ ] **33. Verificar Dependency Rule**
   - Checklist:
-    - `SemaforoIndicator`: aria-label ✓, no solo color ✓
-    - `FilterBar`: `<label>` visible asociado al `<select>` ✓
-    - `ToolCard`: links con texto descriptivo (nombre de herramienta) ✓
-    - `NivelBadge`: texto legible en cada variante ✓
-    - Contraste texto/fondo: ratio ≥4.5:1 ✓
-    - `ErrorState`: botón reintentar accesible ✓
-  - **Done:** Todos los componentes interactivos tienen labels. Colores no son el único canal de información.
+    - `src/domain/` no importa de application, infrastructure, ni presentation ✓
+    - `src/application/` no importa de infrastructure ni presentation ✓
+    - `src/infrastructure/` no importa de presentation ✓
+    - `src/presentation/` importa de application (handlers) e infrastructure (repo para DI) ✓
+  - **Done:** Ningún import viola la dependency rule. `tsc --noEmit` pasa.
 
-- [ ] **25. Smoke test manual de flujo completo**
-  - Ejecutar: `npx prisma db seed` + `npm run dev`.
-  - Flujo:
-    1. `/catalogo` → verificar 31 herramientas en grid responsivo (orden: activas → condicionales → retiradas)
-    2. Filtrar "Pública" → 5 resultados (Gemini, Gamma, Perplexity, Meta AI, Grok)
-    3. Filtrar "Restringida" → 3 resultados (Sophos MDR, LM Studio, Clonadores de voz)
-    4. "Todos los niveles" → 31 herramientas de vuelta
-    5. Click en herramienta activa → detalle con DPA ("Información no disponible aún") + semáforo verde
-    6. "Volver al catálogo" → regresa a `/catalogo`
-    7. Click en herramienta retirada → detalle con banner rojo + razón de retiro
-    8. Verificar Odiseo → semáforo amarillo + "Sin clasificar" + "Sin categoría"
-  - Edge cases:
-    - `/catalogo/999` → not-found.tsx
-    - Resize browser → grid adapta columnas (1/2/3)
-    - Título del tab muestra "Catálogo de Herramientas AI — LAG"
-  - **Done:** Flujo completo sin errores en consola. Datos correctos. Nulls manejados. Grid responsivo. Metadata visible.
+- [ ] **34. Smoke test manual de flujo completo**
+  - `npx prisma db seed` + `npm run dev`
+  - Flujo: `/catalogo` → filtrar → detalle → volver → retirada con banner → Odiseo con semáforo amarillo + "Sin clasificar"
+  - Edge: `/catalogo/999` → not-found. Grid responsivo (1/2/3 cols).
+  - **Done:** Flujo sin errores. Clean Architecture respetada. Datos correctos.
 
 ---
 
 ## Resumen
 
-| Fase | Tareas | Foco | Duración est. |
+| Fase | Tareas | Capa | Duración est. |
 |------|--------|------|---------------|
-| 1 | 1–4 | Infraestructura BD + seed idempotente | ~3.5h |
-| 2 | 5–6 | Validaciones Zod + tipos | ~1.5h |
-| 3 | 7–8 | API endpoints con error handling | ~2h |
-| 4 | 9–14 | Componentes atómicos (SC + CC) | ~5h |
-| 5 | 15–16 | Componentes compuestos + grid responsivo | ~2h |
-| 6 | 17–22 | Páginas + loading + error + not-found + metadata | ~4.5h |
-| 7 | 23–25 | Layout, a11y, smoke test | ~2h |
-| **Total** | **25 tareas** | | **~21h** |
+| 1 | 1–4 | Domain | ~3h |
+| 2 | 5–7 | Application | ~2.5h |
+| 3 | 8–13 | Infrastructure (BD + repo + seed) | ~4.5h |
+| 4 | 14–16 | Presentation: API + validaciones | ~2.5h |
+| 5 | 17–22 | Presentation: componentes atómicos | ~4h |
+| 6 | 23–24 | Presentation: componentes compuestos | ~1.5h |
+| 7 | 25–30 | Presentation: páginas + error boundaries | ~4h |
+| 8 | 31–34 | Layout, a11y, dependency rule, smoke test | ~2.5h |
+| **Total** | **34 tareas** | | **~25h** |
 
 ---
 
-## Trazabilidad: Tasks → Stories → Hallazgos resueltos
+## Trazabilidad: Tasks → Capas → Stories
 
-| Task | Cubre Story | Hallazgo adversarial resuelto |
-|------|-------------|-------------------------------|
-| 1 | Todas (infra) | — |
-| 2 | Todas (infra) | v1#2,#3 (nullable), v1#9 (unique con name) , v2#2 (compound key syntax) |
-| 3 | Todas (infra) | — |
-| 4 | Todas (infra) | v1#1 (transformación estado), v1#2,#3 (nulls), v1#9 (upsert idempotente) |
-| 5 | Todas (contratos) | v1#1 (enum Condicional), v1#2,#3 (nullable schemas) |
-| 6 | Todas (contratos) | — |
-| 7 | US-01, US-02 | v1#8 (filtro estado + orden), v2#8 (AND documentado) |
-| 8 | US-03 | v1#4 (error genérico 500) |
-| 9 | US-01, US-03, US-04 | — |
-| 10 | US-01, US-02 | v1#2,#3 (manejo null → badge gris) |
-| 11 | US-01 | — |
-| 12 | Todas | v1#4 (error UI), v2#3 (CC por error.tsx) |
-| 13 | US-03 | v2#7 (Link no router.back, fallback) |
-| 14 | US-02 | v1#5 (label accesible) |
-| 15 | US-01, US-05 | v1#3 (null categoria) |
-| 16 | US-01 | v2#9 (grid responsivo definido) |
-| 17 | Todas | v1#7 (loading state) |
-| 18 | Todas | v1#4 (error boundary), v2#3 (CC) |
-| 19 | US-01, US-02 | v2#1 (Prisma directo, no API), v3 (metadata) |
-| 20 | US-03 | v1#7 (loading state) |
-| 21 | US-03 | v1#4 (not found amigable) |
-| 22 | US-03, US-05 | v1#6 (DPA placeholder), v3 (generateMetadata) |
-| 23 | Todas (presentación) | — |
-| 24 | US-04 (a11y) | — |
-| 25 | US-01, US-02, US-03 | Integración + validación de todos los hallazgos |
+| Task | Capa | Cubre Story |
+|------|------|-------------|
+| 1–4 | Domain | Todas (modelo de negocio) |
+| 5–7 | Application | Todas (orquestación) |
+| 8–13 | Infrastructure | Todas (persistencia) |
+| 14 | Presentation (validación) | US-02, US-03 |
+| 15 | Presentation (API) | US-01, US-02 |
+| 16 | Presentation (API) | US-03 |
+| 17 | Presentation (UI) | US-01, US-03, US-04 |
+| 18 | Presentation (UI) | US-01, US-02 |
+| 19 | Presentation (UI) | US-01 |
+| 20 | Presentation (UI) | Todas (error handling) |
+| 21 | Presentation (UI) | US-03 |
+| 22 | Presentation (UI) | US-02 |
+| 23 | Presentation (UI) | US-01, US-05 |
+| 24 | Presentation (UI) | US-01 |
+| 25–26 | Presentation (pages) | Todas (UX loading/error) |
+| 27 | Presentation (pages) | US-01, US-02 |
+| 28–29 | Presentation (pages) | US-03 |
+| 30 | Presentation (pages) | US-03, US-05 |
+| 31 | Presentation (layout) | Todas |
+| 32 | QA | US-04 (a11y) |
+| 33 | QA | Clean Architecture compliance |
+| 34 | QA | Integración completa |
