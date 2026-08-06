@@ -9,7 +9,7 @@
 
 ## Fase 1: Domain Layer (cero dependencias externas)
 
-- [ ] **1. Crear value objects del dominio**
+- [x] **1. Crear value objects del dominio**
   - Archivos:
     - `src/domain/herramienta/value-objects/nivel-clasificacion.vo.ts`
     - `src/domain/herramienta/value-objects/estado-herramienta.vo.ts`
@@ -17,20 +17,20 @@
   - Constantes array: `NIVELES_CLASIFICACION`, `ESTADOS_HERRAMIENTA`.
   - **Done:** Compilan sin imports externos. Importables desde `@/domain/herramienta/value-objects/`.
 
-- [ ] **2. Crear entidad `Herramienta` con factory method**
+- [x] **2. Crear entidad `Herramienta` con factory method**
   - Archivo: `src/domain/herramienta/herramienta.entity.ts`
   - Constructor privado + `static create(props): Herramienta`.
   - Props: id, nombre, proveedor, categoria (null), nivelMaximo (null), estado, dpa, razonRetiro (null), creadoEn, actualizadoEn.
   - Getters readonly. Computed: `estaRetirada`, `esCondicional`.
   - **Done:** Compila. NO importa framework. Factory crea instancia. Getters funcionan.
 
-- [ ] **3. Crear interface `IHerramientaRepository` (PORT)**
+- [x] **3. Crear interface `IHerramientaRepository` (PORT)**
   - Archivo: `src/domain/herramienta/herramienta.repository.ts`
   - Interface con `findAll(filters?: HerramientaFilters): Promise<Herramienta[]>` y `findById(id): Promise<Herramienta | null>`.
   - Type `HerramientaFilters = { nivelMaximo?: NivelClasificacion; estado?: EstadoHerramienta }`.
   - **Done:** Compila. Solo importa de entity y value-objects locales.
 
-- [ ] **4. Crear errores tipados del dominio**
+- [x] **4. Crear errores tipados del dominio**
   - Archivo: `src/domain/herramienta/herramienta.errors.ts`
   - `HerramientaNotFoundError`, `NivelInvalidoError` — cada uno con `code` y `message`.
   - **Done:** Compila. Errores instanciables con mensajes descriptivos.
@@ -39,7 +39,7 @@
 
 ## Fase 2: Application Layer (depende solo de Domain)
 
-- [ ] **5. Crear DTOs de response**
+- [x] **5. Crear DTOs de response**
   - Archivos:
     - `src/application/herramientas/dtos/herramienta-list-item.dto.ts`
     - `src/application/herramientas/dtos/herramienta-detail.dto.ts`
@@ -47,13 +47,13 @@
   - `HerramientaDetailDto`: extiende list item + dpa, creadoEn (ISO string), actualizadoEn (ISO string).
   - **Done:** Compilan. Interfaces planas sin dependencia externa.
 
-- [ ] **6. Crear `ListHerramientasHandler`**
+- [x] **6. Crear `ListHerramientasHandler`**
   - Archivo: `src/application/herramientas/queries/list-herramientas.handler.ts`
   - Constructor: recibe `IHerramientaRepository`.
   - `execute(filters?)`: llama `repo.findAll(filters)` → mapea entity → `HerramientaListItemDto[]` → retorna `{ data, count }`.
   - **Done:** Compila. Solo importa de `@/domain/`. Retorna shape correcta.
 
-- [ ] **7. Crear `GetHerramientaByIdHandler`**
+- [x] **7. Crear `GetHerramientaByIdHandler`**
   - Archivo: `src/application/herramientas/queries/get-herramienta-by-id.handler.ts`
   - Constructor: recibe `IHerramientaRepository`.
   - `execute(id)`: llama `repo.findById(id)` → retorna `HerramientaDetailDto | null`.
@@ -64,34 +64,34 @@
 
 ## Fase 3: Infrastructure Layer (implementa PORTs)
 
-- [ ] **8. Crear schema Prisma**
+- [x] **8. Crear schema Prisma**
   - Archivo: `prisma/schema.prisma`
   - Modelo `Herramienta`: id, nombre, proveedor, categoria?, nivelMaximo?, estado, dpa (default "No aplica"), razonRetiro?, creadoEn, actualizadoEn.
   - `@@unique([nombre, proveedor], name: "nombre_proveedor")`, `@@map("herramientas")`.
   - **Done:** `npx prisma validate` pasa.
 
-- [ ] **9. Ejecutar migración inicial**
+- [x] **9. Ejecutar migración inicial**
   - Comando: `npx prisma migrate dev --name init`
   - **Done:** Migración + BD SQLite + Prisma Client generados.
 
-- [ ] **10. Crear singleton PrismaClient**
+- [x] **10. Crear singleton PrismaClient**
   - Archivo: `src/infrastructure/database/prisma.client.ts`
   - Hot-reload safe con `globalThis`.
   - **Done:** Importable desde `@/infrastructure/database/prisma.client`.
 
-- [ ] **11. Crear mapper Prisma → Domain**
+- [x] **11. Crear mapper Prisma → Domain**
   - Archivo: `src/infrastructure/mappers/herramienta.mapper.ts`
   - `toDomain(prismaModel): Herramienta` — convierte Prisma row a entity de dominio.
   - **Done:** Mapea nulls y Date correctamente.
 
-- [ ] **12. Crear `PrismaHerramientaRepository` (ADAPTER)**
+- [x] **12. Crear `PrismaHerramientaRepository` (ADAPTER)**
   - Archivo: `src/infrastructure/repositories/prisma-herramienta.repository.ts`
   - Implementa `IHerramientaRepository`.
   - `findAll(filters?)`: `prisma.herramienta.findMany` + where dinámico + orderBy custom (Activas→Condicionales→Retiradas, nombre ASC). Usa mapper `toDomain()`.
   - `findById(id)`: `prisma.herramienta.findUnique`. Null si no existe.
   - **Done:** Implementa interface. Filtros AND. Orden correcto. Compila.
 
-- [ ] **13. Crear composition root (container)**
+- [x] **13. Crear composition root (container)**
   - Archivo: `src/infrastructure/container.ts`
   - Exporta handlers pre-instanciados con sus dependencias:
     ```ts
@@ -100,7 +100,7 @@
     ```
   - **Done:** Pages y API routes importan handlers de aquí sin conocer Infrastructure directamente.
 
-- [ ] **14. Crear seed idempotente**
+- [x] **14. Crear seed idempotente**
   - Archivo: `prisma/seed.ts`
   - `upsert` con `where: { nombre_proveedor: { nombre, proveedor } }`.
   - Transformaciones: "Activa (condicional)"→"Condicional", "—"→null.

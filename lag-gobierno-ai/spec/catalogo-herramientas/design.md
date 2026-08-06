@@ -209,6 +209,26 @@ model Herramienta {
 
 > **Nota SQLite:** SQLite no soporta enums nativos. En desarrollo, Prisma los mapea a `String` con validación en la capa ORM. En producción (PostgreSQL/Neon), se crean como `ENUM` reales en BD. El comportamiento es idéntico para el código de aplicación.
 
+<!-- agregado post-implementación -->
+> **Nota de implementación real:** El schema implementado usa `String` (no enums Prisma) porque el adapter `@prisma/adapter-libsql` en Prisma 7 no genera constraints de enum reales en SQLite. La validación se hace en `src/infrastructure/mappers/herramienta.mapper.ts` con type guards contra los value objects del dominio. El schema real implementado es:
+>
+> ```prisma
+> model Herramienta {
+>   id            Int      @id @default(autoincrement())
+>   nombre        String
+>   proveedor     String
+>   categoria     String?
+>   nivelMaximo   String?
+>   estado        String  @default("Activa")
+>   dpa           String  @default("No aplica")
+>   razonRetiro   String?
+>   creadoEn      DateTime @default(now())
+>   actualizadoEn DateTime @updatedAt
+>   @@unique([nombre, proveedor], name: "nombre_proveedor")
+>   @@map("herramientas")
+> }
+> ```
+
 ### Decisiones del modelo (resuelve hallazgos de revisión)
 
 | Dato real | Valor en BD | Razón |
@@ -534,6 +554,18 @@ Si el contexto de despliegue cambia (ej. se decide exponer el catálogo externam
 - **DPA siempre "No aplica":** No hay datos reales de DPA en la fuente. El campo existe como placeholder para post-MVP (integración con sistema de contratos). Se documenta en la UI como "Información no disponible aún" si el valor es "No aplica".
 - **ID autoincremental en URL:** Para 31 items internos, la predecibilidad no es un riesgo. Post-MVP considerar slugs si se expone externamente.
 
+<!-- agregado post-implementación -->
+### Decisiones técnicas descubiertas durante implementación
+
+| Decisión | Contexto | Alternativa descartada |
+|----------|----------|----------------------|
+| **Prisma 7 usa `prisma.config.ts` en raíz** | Prisma 7 eliminó `url` del `datasource` block en schema.prisma. La conexión se configura en `prisma.config.ts` que debe estar en la raíz para auto-discovery sin `--config` flag. | Ubicar en `prisma/prisma.config.ts` requería `--config` en cada comando CLI. |
+| **Adapter `@prisma/adapter-libsql` (no `better-sqlite3`)** | `better-sqlite3` requiere native compilation (`node-gyp`) que fallaba en el entorno. `libsql` es pure JavaScript, sin dependencia de compilación nativa. | `@prisma/adapter-better-sqlite3` — descartado por fallos de build. |
+| **`tsx` como TS runner para seed** | Prisma 7 requiere ejecutar `prisma.config.ts` y `seed.ts`. `tsx` es zero-config y más rápido que `ts-node`. | `ts-node` — requiere config adicional (`tsconfig.paths`) y es más lento. |
+| **Schema sin enums de Prisma — usa `String` con validación en ORM** | SQLite no soporta enums nativos. El adapter libsql mapea todo como `TEXT`. La validación de valores se hace en el mapper (`herramienta.mapper.ts`) con type guards contra los value objects del dominio. | Enums de Prisma (`enum NivelClasificacion`) — funcionan en PostgreSQL pero no generan constraint real en SQLite con el adapter libsql. |
+| **Orden en memoria (no en query)** | SQLite con Prisma/libsql no soporta `orderBy` con CASE/FIELD nativo para orden custom por estado. Se ordena en JavaScript post-fetch (31 registros, costo O(n log n) trivial). | Raw SQL `ORDER BY CASE` — acopla la implementación a SQLite syntax. |
+| **Composition root en `src/infrastructure/container.ts`** | Resuelve la inyección de dependencias sin framework DI. Las pages importan handlers ya instanciados. Evita que Presentation conozca los repositorios concretos. | Instanciar repos directamente en cada page — viola Dependency Rule. |
+
 ---
 
 ## 8. Proceso de actualización del catálogo (H3)
@@ -586,7 +618,16 @@ Verificar check de integridad (conteo == 31 o N esperado)
 
 ## Dependencias adicionales
 
-Ninguna fuera del stack base (`standards.md`). No se requieren paquetes nuevos.
+<!-- agregado post-implementación -->
+Las siguientes dependencias son requeridas por Prisma 7 (que eliminó el motor de queries interno y exige driver adapters obligatorios):
+
+| Paquete | Tipo | Versión | Razón |
+|---------|------|---------|-------|
+| `@prisma/adapter-libsql` | dependency | ^7.9.1 | Driver adapter obligatorio para conectar Prisma 7 a SQLite. Pure JS (sin native compilation). |
+| `@libsql/client` | dependency | ^0.17.4 | Driver libSQL — peer dependency del adapter. |
+| `tsx` | devDependency | ^4.23.8 | TS runner para ejecutar `prisma/seed.ts` y `prisma.config.ts`. Prisma 7 requiere config en TypeScript. |
+
+> Ref: `docs/decisions/agent-decisions.md` para el registro completo de decisiones de dependencias.
 
 ---
 
@@ -616,6 +657,7 @@ src/
 │           └── herramienta-detail.dto.ts     ← Shape del detalle (con DPA + timestamps)
 │
 ├── infrastructure/                            ← CAPA INFRASTRUCTURE (implementa PORTs)
+│   ├── container.ts                          ← Composition root: handlers pre-instanciados (agregado post-implementación)
 │   ├── database/
 │   │   └── prisma.client.ts                  ← Singleton PrismaClient
 │   ├── repositories/
@@ -652,22 +694,22 @@ src/
 │
 prisma/
 ├── schema.prisma
-└── seed.ts
+├── seed.ts
+└── migrations/                               ← Generado por prisma migrate dev
+    └── YYYYMMDDHHMMSS_init/
+        └── migration.sql
+<!-- agregado post-implementación -->
+prisma.config.ts                              ← Config raíz (Prisma 7 lo requiere aquí para auto-discovery)
 ```
 
 ### Nota sobre Next.js App Router + Clean Architecture
 
-Next.js requiere que las páginas estén en `src/app/` para el routing. Se usa un **re-export pattern**:
+<!-- agregado post-implementación: decisión tomada -->
+**Decisión tomada:** Pages y API routes viven directamente en `src/app/` (idiomático para Next.js App Router). No se usa re-export pattern. La capa Presentation se divide así:
 
-```typescript
-// src/app/catalogo/page.tsx (Next.js routing requirement)
-export { default } from "@/presentation/pages/catalogo/page";
-export { metadata } from "@/presentation/pages/catalogo/page";
-```
-
-Alternativamente, si el equipo prefiere colocar las pages directamente en `src/app/` (más idiomático para Next.js), la capa Presentation se divide:
-- `src/app/` → Solo pages y API routes (thin wrappers que llaman handlers)
+- `src/app/` → Pages y API routes (thin, llaman handlers del container)
+- `src/infrastructure/container.ts` → Composition root que exporta handlers pre-instanciados
 - `src/presentation/components/` → UI components
-- `src/presentation/validations/` → Zod schemas
+- `src/presentation/validations/` → Zod schemas (input HTTP parsing)
 
-Ambos approaches cumplen la Dependency Rule. El equipo elige durante implementación.
+Los Server Components en `src/app/` importan handlers de `@/infrastructure/container` sin instanciar repositorios directamente. Esto cumple la Dependency Rule.

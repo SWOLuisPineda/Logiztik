@@ -1,7 +1,7 @@
-# Team / enterprise overrides for _bmad/config.toml.
-# Committed to the repo — applies to every developer on the project.
-# Tables deep-merge over base config; keyed entries merge by key.
-# Example: override an agent descriptor, or add a new agent.
-#
-# [agents.bmad-agent-pm]
-# description = "Prefers short, bulleted PRDs over narrative drafts."
+[core]
+# Regla que aplica a TODOS los agentes, en todas las invocaciones
+persistent_facts = [
+  "REGLA DE DEPENDENCIAS: Si necesitas instalar un paquete (npm install) que NO está en docs/engineering/standards.md ni en spec/catalogo-herramientas/design.md, NO lo instales silenciosamente. Primero indica: paquete, versión, razón. Si se aprueba, registra en docs/decisions/agent-decisions.md con formato: | Task | Paquete | Versión | Razón | En design.md |",
+  "REGLA DE DECISIONES: Toda decisión arquitectónica tomada durante la implementación (cambio de patrón, workaround, limitación encontrada) se documenta en docs/decisions/agent-decisions.md ANTES de continuar.",
+  "file:{project-root}/docs/decisions/agent-decisions.md",
+]
