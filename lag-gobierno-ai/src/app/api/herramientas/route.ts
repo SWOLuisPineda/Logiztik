@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { listHerramientasHandler } from "@/infrastructure/container";
 import { ListHerramientasQuerySchema } from "@/presentation/validations/herramienta.validation";
-import type { HerramientaFilters } from "@/domain/herramienta/herramienta.repository";
 
 /**
  * Task 16 — GET /api/herramientas
@@ -19,7 +18,7 @@ import type { HerramientaFilters } from "@/domain/herramienta/herramienta.reposi
  *   500 — error interno, nunca expone detalles al cliente
  *
  * Dependency Rule: importa handler de @/infrastructure/container.
- * No instancia repositorios directamente.
+ * NO importa de @/domain/ — filtros se construyen como objeto literal.
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   // 1. Extraer query params
@@ -46,8 +45,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     );
   }
 
-  // 3. Construir filtros tipados — los valores ya son validados por Zod
-  const filters: HerramientaFilters = {
+  // 3. Construir filtros — objeto literal compatible con HerramientaFilters
+  const filters = {
     ...(parsed.data.nivel && { nivelMaximo: parsed.data.nivel }),
     ...(parsed.data.estado && { estado: parsed.data.estado }),
   };

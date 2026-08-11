@@ -48,9 +48,9 @@ export default function ToolList({
     );
   }
 
-  const mostrarBannerRetiradas =
-    estadoFiltroActivo === "Retirada" ||
-    herramientas.every((h) => h.estado === "Retirada");
+  // Banner solo cuando el usuario filtró explícitamente por estado "Retirada" (design.md §H11).
+  // No activar por coincidencia de que todos los resultados sean retiradas.
+  const mostrarBannerRetiradas = estadoFiltroActivo === "Retirada";
 
   return (
     <section aria-label="Listado de herramientas AI">

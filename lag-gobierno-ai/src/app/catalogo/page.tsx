@@ -3,8 +3,6 @@ import { Suspense } from "react";
 import { listHerramientasHandler } from "@/infrastructure/container";
 import FilterBar from "@/presentation/components/FilterBar";
 import ToolList from "@/presentation/components/ToolList";
-import type { HerramientaFilters } from "@/domain/herramienta/herramienta.repository";
-import type { NivelClasificacion } from "@/domain/herramienta/value-objects/nivel-clasificacion.vo";
 
 /**
  * Task 28 — CatalogoPage
@@ -20,6 +18,7 @@ import type { NivelClasificacion } from "@/domain/herramienta/value-objects/nive
  *
  * Dependency Rule: importa handlers de @/infrastructure/container,
  * componentes de @/presentation/components/.
+ * NO importa de @/domain/ — los tipos se manejan localmente.
  */
 
 export const metadata: Metadata = {
@@ -28,12 +27,12 @@ export const metadata: Metadata = {
     "Consulta las herramientas de Inteligencia Artificial aprobadas y retiradas en Logiztik Alliance Group.",
 };
 
-const NIVELES_VALIDOS: readonly string[] = [
+const NIVELES_VALIDOS = [
   "Publica",
   "Interna",
   "Confidencial",
   "Restringida",
-];
+] as const;
 
 interface CatalogoPageProps {
   searchParams: Promise<{ nivel?: string; estado?: string }>;
@@ -46,27 +45,22 @@ export default async function CatalogoPage({ searchParams }: CatalogoPageProps) 
   const estadoRaw = params.estado;
 
   // Validar nivel — ignorar valores inválidos silenciosamente
-  const nivelValido = nivelRaw && NIVELES_VALIDOS.includes(nivelRaw)
-    ? (nivelRaw as NivelClasificacion)
+  const nivelValido = nivelRaw && (NIVELES_VALIDOS as readonly string[]).includes(nivelRaw)
+    ? nivelRaw
     : undefined;
 
-  // Construir filtros para el handler
-  const filters: HerramientaFilters = {
-    ...(nivelValido && { nivelMaximo: nivelValido }),
-  };
+  // Obtener todas las herramientas en una sola llamada
+  const { data: todas } = await listHerramientasHandler.execute(undefined);
 
-  // Obtener herramientas filtradas
-  const { data: herramientas } = await listHerramientasHandler.execute(
-    Object.keys(filters).length > 0 ? filters : undefined
-  );
+  // Filtrar en memoria (31 registros — O(n) trivial, evita segunda query)
+  const herramientas = nivelValido
+    ? todas.filter((h) => h.nivelMaximo === nivelValido)
+    : todas;
 
   // Calcular herramientas sin nivel (para aviso en FilterBar — design.md §H7)
-  // Solo relevante cuando hay filtro activo
-  let sinNivelCount = 0;
-  if (nivelValido) {
-    const { data: todas } = await listHerramientasHandler.execute(undefined);
-    sinNivelCount = todas.filter((h) => h.nivelMaximo === null).length;
-  }
+  const sinNivelCount = nivelValido
+    ? todas.filter((h) => h.nivelMaximo === null).length
+    : 0;
 
   return (
     <div>

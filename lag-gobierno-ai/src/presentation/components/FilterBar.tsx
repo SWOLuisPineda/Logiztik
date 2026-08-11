@@ -51,7 +51,9 @@ export default function FilterBar({ sinNivelCount = 0 }: FilterBarProps) {
         params.delete("nivel");
       }
 
-      router.push(`${pathname}?${params.toString()}`);
+      // Evitar URL con ? trailing cuando no quedan params
+      const qs = params.toString();
+      router.push(qs ? `${pathname}?${qs}` : pathname);
     },
     [router, pathname, searchParams]
   );
@@ -89,7 +91,8 @@ export default function FilterBar({ sinNivelCount = 0 }: FilterBarProps) {
             onClick={() => {
               const params = new URLSearchParams(searchParams.toString());
               params.delete("nivel");
-              router.push(`${pathname}?${params.toString()}`);
+              const qs = params.toString();
+              router.push(qs ? `${pathname}?${qs}` : pathname);
             }}
             className="inline-flex items-center gap-1 rounded-full bg-[#86B81C]/10 px-2.5 py-0.5 text-xs font-medium text-[#5C8314] hover:bg-[#86B81C]/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#86B81C]"
             aria-label={`Quitar filtro: ${nivelActivo}`}
