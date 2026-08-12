@@ -1,5 +1,6 @@
 import { NivelClasificacion } from "./value-objects/nivel-clasificacion.vo";
 import { EstadoHerramienta } from "./value-objects/estado-herramienta.vo";
+import { DpaEstado } from "./value-objects/dpa-estado.vo";
 
 /**
  * Props para crear una entidad Herramienta.
@@ -11,7 +12,7 @@ export interface HerramientaProps {
   categoria: string | null;
   nivelMaximo: NivelClasificacion | null;
   estado: EstadoHerramienta;
-  dpa: string;
+  dpa: DpaEstado;
   razonRetiro: string | null;
   creadoEn: Date;
   actualizadoEn: Date;
@@ -54,7 +55,7 @@ export class Herramienta {
     return this.props.estado;
   }
 
-  get dpa(): string {
+  get dpa(): DpaEstado {
     return this.props.dpa;
   }
 

@@ -349,7 +349,18 @@ async function main() {
   }
 
   const count = await prisma.herramienta.count();
+  const TOTAL_ESPERADO = 31; // 27 activas + 4 retiradas
+
   console.log(`Seed completo. Total herramientas en BD: ${count}`);
+
+  if (count !== TOTAL_ESPERADO) {
+    console.error(
+      `⚠️  SEED INTEGRITY ERROR: Se esperaban ${TOTAL_ESPERADO} registros, ` +
+        `pero hay ${count} en BD. ` +
+        `Verificar si catalogo-herramientas-datos.md fue actualizado sin ajustar el seed.`
+    );
+    process.exit(1);
+  }
 }
 
 main()

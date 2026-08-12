@@ -14,6 +14,24 @@
 | text-secondary | #6B7280 | Labels, placeholders        |
 | brand-dark     | #5C8314 | Hover/pressed               |
 
+## Imagenes
+
+> - Logo empresa:
+![Logo](/docs/imgs/LogiztikAlliance.png);
+
+>- Icono empresa:
+![Logo](/docs/imgs/Icono.jpeg)
+
+### Uso en la aplicación
+
+| Asset | Ubicación en `public/` | Uso |
+|-------|----------------------|-----|
+| Logo completo | `/images/logo-lag.png` | Header global — muestra la marca completa |
+| Icono | `/images/icono-lag.jpeg` | Header global (ícono cuadrado 32x32) + favicon del tab del browser |
+
+- **Favicon:** `src/app/icon.jpeg` (Next.js App Router lo detecta automáticamente como favicon)
+- **Header:** Usa `next/image` con ambos assets: icono (32x32 rounded) + logo (140xauto)
+
 ## Semáforo
 - Verde (#86B81C): Activa, puede usarse
 - Amarillo (#F59E0B): Activa con restricciones
@@ -35,3 +53,4 @@
 - Contraste #383838/#FFFFFF: 10.5:1 ✅
 - Lima sobre blanco: 3.4:1 ⚠️ (solo texto grande o botones)
 - El tema es LIGHT (claro)
+
