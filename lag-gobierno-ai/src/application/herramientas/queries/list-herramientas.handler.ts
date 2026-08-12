@@ -29,6 +29,7 @@ export class ListHerramientasHandler {
       nivelMaximo: h.nivelMaximo,
       estado: h.estado,
       razonRetiro: h.razonRetiro,
+      retiradaEn: h.retiradaEn?.toISOString() ?? null,
     }));
 
     return { data, count: data.length };

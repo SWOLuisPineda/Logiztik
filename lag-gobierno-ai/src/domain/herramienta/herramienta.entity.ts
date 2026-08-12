@@ -13,6 +13,7 @@ export interface HerramientaProps {
   estado: EstadoHerramienta;
   dpa: string;
   razonRetiro: string | null;
+  retiradaEn: Date | null;
   creadoEn: Date;
   actualizadoEn: Date;
 }
@@ -60,6 +61,10 @@ export class Herramienta {
 
   get razonRetiro(): string | null {
     return this.props.razonRetiro;
+  }
+
+  get retiradaEn(): Date | null {
+    return this.props.retiradaEn;
   }
 
   get creadoEn(): Date {

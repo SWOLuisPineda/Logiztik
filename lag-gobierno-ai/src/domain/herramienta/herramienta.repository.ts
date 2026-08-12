@@ -9,6 +9,7 @@ import { EstadoHerramienta } from "./value-objects/estado-herramienta.vo";
 export interface HerramientaFilters {
   nivelMaximo?: NivelClasificacion;
   estado?: EstadoHerramienta;
+  categoria?: string;
 }
 
 /**

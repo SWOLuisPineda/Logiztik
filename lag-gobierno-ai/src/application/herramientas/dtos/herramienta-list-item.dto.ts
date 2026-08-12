@@ -10,4 +10,5 @@ export interface HerramientaListItemDto {
   nivelMaximo: string | null;
   estado: string;
   razonRetiro: string | null;
+  retiradaEn: string | null;
 }
