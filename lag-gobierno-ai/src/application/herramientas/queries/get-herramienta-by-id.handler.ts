@@ -25,6 +25,7 @@ export class GetHerramientaByIdHandler {
       estado: herramienta.estado,
       dpa: herramienta.dpa,
       razonRetiro: herramienta.razonRetiro,
+      retiradaEn: herramienta.retiradaEn?.toISOString() ?? null,
       creadoEn: herramienta.creadoEn.toISOString(),
       actualizadoEn: herramienta.actualizadoEn.toISOString(),
     };

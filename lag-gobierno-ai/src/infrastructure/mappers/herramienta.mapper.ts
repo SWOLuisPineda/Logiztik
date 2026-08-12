@@ -7,6 +7,7 @@ import { ESTADOS_HERRAMIENTA } from "@/domain/herramienta/value-objects/estado-h
 /**
  * Tipo del modelo de Prisma (lo que retorna prisma.herramienta.findMany()).
  * Definido aquí para no acoplar Domain con Prisma types generados.
+ * retiradaEn es opcional para mantener compatibilidad con BD sin migración.
  */
 interface PrismaHerramientaModel {
   id: number;
@@ -17,6 +18,7 @@ interface PrismaHerramientaModel {
   estado: string;
   dpa: string;
   razonRetiro: string | null;
+  retiradaEn?: Date | null;
   creadoEn: Date;
   actualizadoEn: Date;
 }
@@ -45,6 +47,7 @@ export function toDomain(model: PrismaHerramientaModel): Herramienta {
     estado,
     dpa: model.dpa,
     razonRetiro: model.razonRetiro,
+    retiradaEn: model.retiradaEn ?? null,
     creadoEn: model.creadoEn,
     actualizadoEn: model.actualizadoEn,
   });
