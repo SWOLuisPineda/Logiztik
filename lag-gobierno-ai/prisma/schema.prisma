@@ -5,8 +5,12 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// datasource db {
+//   provider = "sqlite"
+// }
+
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Herramienta {
@@ -15,8 +19,8 @@ model Herramienta {
   proveedor     String
   categoria     String? // Nullable: herramientas en evaluación o retiradas pueden no tener
   nivelMaximo   String? // "Publica" | "Interna" | "Confidencial" | "Restringida" | null
-  estado        String  @default("Activa") // "Activa" | "Retirada" | "Condicional"
-  dpa           String  @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
+  estado        String   @default("Activa") // "Activa" | "Retirada" | "Condicional"
+  dpa           String   @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
   razonRetiro   String?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt

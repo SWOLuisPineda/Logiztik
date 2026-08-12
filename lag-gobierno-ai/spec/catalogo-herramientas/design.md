@@ -11,20 +11,62 @@
 
 | Componente | Tipo | Responsabilidad |
 |------------|------|-----------------|
-| `CatalogoPage` | Server Component | Página principal. Llama a `ListHerramientasHandler` (Application layer) para obtener datos. Renderiza layout con filtros y listado. Ruta: `/catalogo` |
-| `ToolList` | Server Component | Renderiza la tabla/grid de herramientas recibidas como props. Muestra nombre, proveedor, categoría, nivel, semáforo. Agrupa activas primero, retiradas al final. |
+| `CatalogoPage` | Server Component | Página principal. Llama a `ListHerramientasHandler` (Application layer) para obtener datos. Renderiza header explicativo, vistas por estado, filtro contextual y listado. Ruta: `/catalogo` |
+| `ResultsSummary` | Server Component | Resume el estado actual del listado. Muestra cantidad de herramientas visibles, contexto del filtro activo y la nota educativa sobre el nivel de dato seleccionado. |
+| `StatusTabs` | Client Component | Control principal de navegación in-page. Permite alternar entre `Todas`, `Autorizadas`, `Condicionales` y `Retiradas`, preservando los demás filtros en la URL. |
 | `ToolCard` | Server Component | Tarjeta individual de herramienta en el listado. Incluye semáforo visual y link al detalle. Si retirada, muestra razón de retiro inline. |
 | `SemaforoIndicator` | Server Component | Componente visual reutilizable. Verde = Activa, Rojo = Retirada, Amarillo = Condicional. Accesible (aria-label + texto alternativo). |
 | `NivelBadge` | Server Component | Badge con color por nivel de clasificación (Pública, Interna, Confidencial, Restringida). Si nivel es null, muestra "Sin clasificar" en gris. |
-| `FilterBar` | Client Component | Barra de filtros interactiva. Dropdown de nivel de clasificación. Mantiene estado de filtro con `useSearchParams`. Label accesible asociado al select. **H7:** Cuando hay un filtro de nivel activo y existen herramientas con `nivelMaximo: null` en el catálogo, muestra un aviso informativo debajo de los resultados: `"X herramienta(s) sin nivel asignado no se muestran en este filtro."` El conteo de herramientas sin nivel se recibe como prop `sinNivelCount: number` desde `CatalogoPage`. |
+| `FilterBar` | Client Component | Barra de filtros interactiva. Reetiqueta el control principal como `Tipo de dato que vas a procesar`. Mantiene estado con `useSearchParams`, es responsiva (stack vertical en mobile) y muestra ayuda contextual bajo el select. Envuelto en `<Suspense>` por requerimiento de Next.js 14. |
+| `ToolList` | Server Component | Renderiza la tabla/grid de herramientas recibidas como props. Muestra nombre, proveedor, categoría, nivel, semáforo. Cuando la vista activa es `Retiradas`, prioriza la advertencia de gobernanza y endurece la separación visual respecto de herramientas autorizadas. **H7:** Cuando hay un filtro de nivel activo, muestra aviso informativo: `"X herramienta(s) sin nivel asignado no se muestran en este filtro."` Recibe props `sinNivelCount: number` y `filtroNivelActivo: boolean` desde `CatalogoPage`. **H11:** Si hay herramientas retiradas visibles, muestra banner de gobernanza: `"Estás viendo herramientas NO autorizadas. No deben usarse con datos de LAG."` |
 | `ToolDetailPage` | Server Component | Página de detalle. Llama a `GetHerramientaByIdHandler` (Application layer). **H6:** El layout varía según el estado de la herramienta — ver tabla de layout diferenciado más abajo. Ruta: `/catalogo/[id]` |
-| `BackButton` | Client Component | Navegación de vuelta al catálogo. Usa `Link` con href `/catalogo` (no `router.back()`) para evitar salir del sitio si el usuario llegó por link directo. Preserva query param `nivel` si está presente en la URL actual. |
+| `BackButton` | Client Component | Navegación de vuelta al catálogo. Recibe `nivel?: string` como prop desde `ToolDetailPage`. Usa `Link` con href `/catalogo?nivel=X` (no `router.back()`) para evitar salir del sitio si el usuario llegó por link directo. Usa SVG chevron (no HTML entities como `&larr;`) para consistencia con el design system. |
 | `EmptyState` | Server Component | Mensaje informativo cuando no hay resultados (filtro vacío o catálogo sin datos). |
 | `ErrorState` | Client Component | Mensaje de error amigable cuando falla el fetch a BD. No expone detalles internos. Incluye botón "Reintentar" (`reset()`). Es Client Component porque se usa dentro de `error.tsx` (que Next.js requiere como CC). |
 
+### H12 — Rediseño del control principal del catálogo
+
+La pantalla deja de presentar el filtro de nivel como un campo técnico del modelo (`nivelMaximo`) y lo presenta como una pregunta de decisión para el usuario: `Tipo de dato que vas a procesar`.
+
+- Si el usuario selecciona `Pública`, el sistema muestra herramientas aptas para procesar datos públicos.
+- Si selecciona `Interna`, `Confidencial` o `Restringida`, el sistema muestra herramientas cuyo `nivelMaximo` permite ese nivel de dato.
+- Herramientas con `nivelMaximo: null` se excluyen de los resultados filtrados y se contabilizan en el aviso H7.
+- El texto de apoyo bajo el filtro debe explicar la regla: `Te mostraremos herramientas aptas para ese nivel de información.`
+
+### H13 — Vistas por estado
+
+El catálogo incorpora una barra de vistas persistente por encima del filtro:
+
+- `Todas`
+- `Autorizadas`
+- `Condicionales`
+- `Retiradas`
+
+Reglas:
+
+- `Todas` no envía query param `estado`.
+- `Autorizadas` usa `estado=Activa`.
+- `Condicionales` usa `estado=Condicional`.
+- `Retiradas` usa `estado=Retirada`.
+- Cambiar de vista preserva `nivel` si existe.
+- El resumen de resultados debe reflejar ambas dimensiones: vista por estado + filtro de nivel.
+
+### H14 — Resumen contextual del listado
+
+Entre la zona de filtros y el grid, `ResultsSummary` mostrará:
+
+- Conteo de herramientas visibles.
+- Descripción humana del contexto actual, por ejemplo: `Mostrando 5 herramientas aptas para datos Confidenciales.`
+- Nota educativa cuando hay filtro de nivel activo: `Estas herramientas pueden procesar datos hasta nivel Confidencial.`
+- Aviso H7 cuando existan herramientas sin nivel asignado excluidas por el filtro.
+
 ### H6 — Layout diferenciado de `ToolDetailPage` (Activa/Condicional vs Retirada)
 
-El `ToolDetailPage` renderiza campos distintos según el estado de la herramienta. No se muestra "Sin clasificar" para herramientas retiradas — se usa un label de indisponibilidad histórica.
+El `ToolDetailPage` renderiza campos distintos según el estado de la herramienta. No se muestra "Sin clasificar" para herramientas retiradas — se usa un label de indisponibilidad histórica. Además, la composición del detalle deja de ser una lista plana de campos y pasa a bloques de decisión:
+
+1. `¿La puedo usar?` — encabezado con semáforo y veredicto corto.
+2. `Datos que puede procesar` — nivel máximo + explicación humana.
+3. `Gobernanza` — DPA, condiciones, razón de retiro y `retiradaEn` si aplica.
 
 | Campo | Herramienta Activa / Condicional | Herramienta Retirada |
 |-------|----------------------------------|----------------------|
@@ -37,8 +79,22 @@ El `ToolDetailPage` renderiza campos distintos según el estado de la herramient
 | Razón de retiro | ❌ No aplica | ✅ Siempre visible, sin click adicional |
 | Banner de advertencia | ❌ No aplica | ✅ `"Esta herramienta NO está autorizada para uso en LAG."` |
 | `retiradaEn` | ❌ No aplica | ✅ Si disponible; si null → `"Fecha no registrada"` |
+| Nota de uso condicional | ✅ `"Uso permitido con restricciones. Verificar condiciones."` | ❌ No aplica |
 
 **Regla de implementación:** `ToolDetailPage` recibe `HerramientaDetailDto` y evalúa `dto.estado === "Retirada"` para ramificar el layout. No son dos componentes separados — es condicional dentro del mismo Server Component.
+
+### Jerarquía visual de `CatalogoPage`
+
+La página se organiza en este orden:
+
+1. Título del módulo.
+2. Subtítulo de orientación: `Consulta qué herramientas AI puedes usar según el tipo de dato que vas a procesar.`
+3. `StatusTabs`.
+4. `FilterBar`.
+5. `ResultsSummary`.
+6. `ToolList`.
+
+En mobile, `StatusTabs` puede wrapear a múltiples líneas y `FilterBar` debe apilar label, select y ayuda contextual.
 
 ---
 
@@ -125,6 +181,8 @@ Lista todas las herramientas. Soporta filtro por nivel y por estado.
   count: number
 }
 ```
+
+**Semántica del filtro `nivel`:** representa el nivel del dato que el usuario planea procesar. La capa de consulta debe retornar herramientas cuyo `nivelMaximo` sea apto para ese nivel. Herramientas sin nivel (`null`) se excluyen del resultado filtrado.
 
 **Orden por defecto:** Activas primero (ordenadas por nombre ASC), luego Condicionales, luego Retiradas.
 
@@ -393,13 +451,16 @@ export interface IHerramientaRepository {
 
 ```typescript
 // src/application/herramientas/dtos/herramienta-list-item.dto.ts
+import type { NivelClasificacion } from "@/domain/herramienta/value-objects/nivel-clasificacion.vo";
+import type { EstadoHerramienta } from "@/domain/herramienta/value-objects/estado-herramienta.vo";
+
 export interface HerramientaListItemDto {
   id: number;
   nombre: string;
   proveedor: string;
   categoria: string | null;
-  nivelMaximo: string | null;
-  estado: string;
+  nivelMaximo: NivelClasificacion | null;
+  estado: EstadoHerramienta;
   razonRetiro: string | null;
 }
 
@@ -565,6 +626,9 @@ Si el contexto de despliegue cambia (ej. se decide exponer el catálogo externam
 | **Schema sin enums de Prisma — usa `String` con validación en ORM** | SQLite no soporta enums nativos. El adapter libsql mapea todo como `TEXT`. La validación de valores se hace en el mapper (`herramienta.mapper.ts`) con type guards contra los value objects del dominio. | Enums de Prisma (`enum NivelClasificacion`) — funcionan en PostgreSQL pero no generan constraint real en SQLite con el adapter libsql. |
 | **Orden en memoria (no en query)** | SQLite con Prisma/libsql no soporta `orderBy` con CASE/FIELD nativo para orden custom por estado. Se ordena en JavaScript post-fetch (31 registros, costo O(n log n) trivial). | Raw SQL `ORDER BY CASE` — acopla la implementación a SQLite syntax. |
 | **Composition root en `src/infrastructure/container.ts`** | Resuelve la inyección de dependencias sin framework DI. Las pages importan handlers ya instanciados. Evita que Presentation conozca los repositorios concretos. | Instanciar repos directamente en cada page — viola Dependency Rule. |
+| **Next.js 14: `params` es objeto directo (no Promise)** | En Next.js 14.x, los route handlers reciben `{ params: { id: string } }` directamente. En Next.js 15+ cambia a `Promise<{ id: string }>`. Nuestro stack usa 14.2.35 — NO usar `await params`. | `await params` — syntax de Next.js 15 que genera error de compilación en 14.x. |
+| **DTOs tipados con union types del dominio** | Los DTOs de Application usan `NivelClasificacion | null` y `EstadoHerramienta` (importados como `type` de Domain). Esto da type safety end-to-end sin romper la Dependency Rule (Application depende de Domain por diseño). | `string` genérico — pierde type safety y permite valores arbitrarios sin detección en compilación. |
+| **API routes NO importan de Domain** | Las routes de Presentation no importan types de `@/domain/` directamente. Usan la inferencia de Zod (`parsed.data.nivel` ya es del tipo `"Publica" | "Interna" | ...`) o reciben tipos via DTOs de Application. | Import directo de `HerramientaFilters` desde Domain — viola Dependency Rule (Presentation → Domain). |
 
 ---
 
@@ -660,6 +724,8 @@ src/
 │   ├── container.ts                          ← Composition root: handlers pre-instanciados (agregado post-implementación)
 │   ├── database/
 │   │   └── prisma.client.ts                  ← Singleton PrismaClient
+│   ├── errors/
+│   │   └── classify-prisma-error.ts          ← Clasificación Transient/Permanent/Configuration (H4)
 │   ├── repositories/
 │   │   └── prisma-herramienta.repository.ts  ← ADAPTER: implementa IHerramientaRepository
 │   └── mappers/

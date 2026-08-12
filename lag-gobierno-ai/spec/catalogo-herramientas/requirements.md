@@ -67,7 +67,7 @@ Feature: Consultar catálogo completo de herramientas AI
 
 **Prioridad:** Must Have
 
-**User Story:** Como *empleado de LAG*, quiero *filtrar las herramientas autorizadas por nivel de clasificación de datos (Pública, Interna, Confidencial, Restringida)* para *identificar rápidamente cuáles puedo usar según la sensibilidad de la información que voy a procesar.*
+**User Story:** Como *empleado de LAG*, quiero *indicar el tipo de dato que voy a procesar (Pública, Interna, Confidencial, Restringida) y ver las herramientas aptas para ese nivel* para *identificar rápidamente cuáles puedo usar sin interpretar manualmente la política.*
 
 **Eventos asociados:** `FiltroDeNivelAplicado` → `HerramientasFiltradas` → `FiltroLimpiado`
 
@@ -78,23 +78,29 @@ Feature: Filtrar herramientas por nivel de clasificación de datos
 
   Scenario: Empleado filtra por nivel "Pública"
     Given el empleado está en el catálogo de herramientas AI
-    When selecciona el filtro de nivel "Pública"
-    Then se muestran únicamente las herramientas con nivel máximo "Pública"
-    And los resultados incluyen: Gemini, Gamma, Perplexity, Meta AI (WhatsApp), Grok
+    When selecciona el filtro "Tipo de dato a procesar" con valor "Pública"
+    Then se muestran las herramientas aptas para procesar datos públicos
+    And los resultados incluyen al menos: Gemini, Gamma, Perplexity, Meta AI (WhatsApp), Grok
     And el conteo de resultados refleja la cantidad filtrada
 
   Scenario: Empleado filtra por nivel "Restringida"
     Given el empleado está en el catálogo de herramientas AI
-    When selecciona el filtro de nivel "Restringida"
-    Then se muestran únicamente las herramientas con nivel máximo "Restringida"
+    When selecciona el filtro "Tipo de dato a procesar" con valor "Restringida"
+    Then se muestran únicamente las herramientas aprobadas para nivel Restringida
     And los resultados incluyen: Agentes IA Seguridad (Sophos MDR), LM Studio, Clonadores de voz
     And se muestra indicador visual amarillo/rojo de precaución por la sensibilidad del dato
 
   Scenario: Empleado entiende la lógica del nivel máximo
     Given el empleado filtra por nivel "Confidencial"
     When visualiza los resultados
-    Then se muestran herramientas aprobadas hasta nivel Confidencial
+    Then se muestran herramientas aptas para procesar datos hasta nivel Confidencial
     And se muestra una nota explicativa: "Estas herramientas pueden procesar datos hasta nivel Confidencial"
+
+  Scenario: Empleado entiende cuántos resultados está viendo
+    Given el empleado tiene un filtro de nivel o una vista por estado activa
+    When el listado se actualiza
+    Then se muestra un resumen visible con la cantidad de herramientas mostradas
+    And el resumen explica el contexto del filtro aplicado
 
   Scenario: Empleado limpia los filtros
     Given el empleado tiene un filtro de nivel activo
@@ -212,7 +218,7 @@ Feature: Listado de herramientas retiradas con razón de retiro
 
   Scenario: Empleado consulta las herramientas retiradas
     Given el empleado accede al catálogo de herramientas AI
-    When aplica un filtro o navega a "Herramientas retiradas"
+    When selecciona la vista "Retiradas"
     Then se muestran las 4 herramientas retiradas:
       | Herramienta       | Proveedor           | Razón de retiro                    |
       | Windsurf / Cursor | Codeium / Anysphere | Sin uso activo registrado          |
@@ -226,6 +232,12 @@ Feature: Listado de herramientas retiradas con razón de retiro
     When lee la información de la herramienta
     Then se muestra un banner o aviso: "Esta herramienta NO está autorizada. No la utilice con datos de LAG."
     And la razón de retiro es visible sin necesidad de navegar al detalle
+
+  Scenario: Empleado cambia entre vistas de estado
+    Given el empleado está en el catálogo de herramientas AI
+    When selecciona una vista entre "Todas", "Autorizadas", "Condicionales" y "Retiradas"
+    Then el listado se actualiza sin perder el filtro de nivel activo
+    And la URL preserva la combinación de vista y filtro seleccionados
 ```
 
 ---
