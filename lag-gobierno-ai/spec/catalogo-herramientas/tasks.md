@@ -111,18 +111,18 @@
 
 ## Fase 4: Presentation — Validaciones y API routes
 
-- [ ] **15. Crear Zod schemas de validación HTTP**
+- [X] **15. Crear Zod schemas de validación HTTP**
   - Archivo: `src/presentation/validations/herramienta.validation.ts`
   - `ListHerramientasQuerySchema` (nivel + estado opcionales), `GetHerramientaParamsSchema` (id entero positivo).
   - **Done:** `safeParse` valida correctamente.
 
-- [ ] **16. Implementar GET /api/herramientas**
+- [X] **16. Implementar GET /api/herramientas**
   - Archivo: `src/app/api/herramientas/route.ts`
   - Thin: Zod parse → import handler de container → `execute(filters)` → JSON response.
   - Errores: 400 descriptivo, 500 `"Error interno del servidor"` + `console.error`.
   - **Done:** 200 (31 items), `?nivel=Publica` (5), `?nivel=Invalido` (400), BD caída (500).
 
-- [ ] **17. Implementar GET /api/herramientas/[id]**
+- [X] **17. Implementar GET /api/herramientas/[id]**
   - Archivo: `src/app/api/herramientas/[id]/route.ts`
   - Thin: Zod parse id → handler.execute(id) → 200/404/400/500.
   - **Done:** `/1`→200, `/999`→404, `/abc`→400.
@@ -131,32 +131,32 @@
 
 ## Fase 5: Presentation — Componentes atómicos
 
-- [ ] **18. Crear `SemaforoIndicator`**
+- [X] **18. Crear `SemaforoIndicator`**
   - Archivo: `src/presentation/components/SemaforoIndicator.tsx`
   - SC. Verde `#86B81C`, amarillo `#F59E0B`, rojo `#DC2626`. Texto + aria-label.
   - **Done:** 3 estados. WCAG AA (no solo color).
 
-- [ ] **19. Crear `NivelBadge`**
+- [X] **19. Crear `NivelBadge`**
   - Archivo: `src/presentation/components/NivelBadge.tsx`
   - SC. Null → gris "Sin clasificar". 4 niveles con color.
   - **Done:** 5 variantes.
 
-- [ ] **20. Crear `EmptyState`**
+- [X] **20. Crear `EmptyState`**
   - Archivo: `src/presentation/components/EmptyState.tsx`
   - SC. "No hay herramientas registradas actualmente".
   - **Done:** Renderiza mensaje.
 
-- [ ] **21. Crear `ErrorState`**
+- [X] **21. Crear `ErrorState`**
   - Archivo: `src/presentation/components/ErrorState.tsx`
   - CC. Props: `reset()`. Botón "Reintentar".
   - **Done:** `"use client"`. Mensaje + botón.
 
-- [ ] **22. Crear `BackButton`**
+- [X] **22. Crear `BackButton`**
   - Archivo: `src/presentation/components/BackButton.tsx`
   - CC. `Link` a `/catalogo`. Lee `useSearchParams` para preservar `?nivel=`.
   - **Done:** Navega correctamente. Preserva filtro.
 
-- [ ] **23. Crear `FilterBar`**
+- [X] **23. Crear `FilterBar`**
   - Archivo: `src/presentation/components/FilterBar.tsx`
   - CC. `<label>` + `<select>`. `useSearchParams` + `useRouter`.
   - **Done:** Actualiza URL. "Todos" remueve param. Label accesible.
@@ -165,14 +165,14 @@
 
 ## Fase 6: Presentation — Componentes compuestos
 
-- [ ] **24. Crear `ToolCard`**
+- [X] **24. Crear `ToolCard`**
   - Archivo: `src/presentation/components/ToolCard.tsx`
   - SC. Props: `HerramientaListItemDto`. Link, SemaforoIndicator, NivelBadge.
   - Retirada → razón inline. Null → "Sin categoría".
   - Card: `rounded-lg bg-white border border-[#E2E8E0] shadow-sm p-6`.
   - **Done:** Campos completos. Nulls manejados.
 
-- [ ] **25. Crear `ToolList`**
+- [X] **25. Crear `ToolList`**
   - Archivo: `src/presentation/components/ToolList.tsx`
   - SC. Grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`. Vacío → EmptyState.
   - **Done:** Grid responsivo. EmptyState en vacío.
@@ -181,31 +181,31 @@
 
 ## Fase 7: Presentation — Páginas
 
-- [ ] **26. Crear `loading.tsx` catálogo**
+- [X] **26. Crear `loading.tsx` catálogo**
   - Archivo: `src/app/catalogo/loading.tsx`
   - **Done:** Skeleton visible durante fetch.
 
-- [ ] **27. Crear `error.tsx` catálogo**
+- [X] **27. Crear `error.tsx` catálogo**
   - Archivo: `src/app/catalogo/error.tsx`
   - CC. Renderiza ErrorState con `reset`.
   - **Done:** BD falla → ErrorState, no error críptico.
 
-- [ ] **28. Implementar `CatalogoPage`**
+- [X] **28. Implementar `CatalogoPage`**
   - Archivo: `src/app/catalogo/page.tsx`
   - SC. Lee `searchParams.nivel`. Importa handler de `@/infrastructure/container`. Renderiza FilterBar + ToolList.
   - `export const metadata = { title: "Catálogo de Herramientas AI — LAG" }`.
   - **Done:** 31 herramientas. Filtro funciona. Metadata correcta. Usa handler (no Prisma directo).
 
-- [ ] **29. Crear `loading.tsx` detalle**
+- [X] **29. Crear `loading.tsx` detalle**
   - Archivo: `src/app/catalogo/[id]/loading.tsx`
   - **Done:** Skeleton visible.
 
-- [ ] **30. Crear `not-found.tsx` detalle**
+- [X] **30. Crear `not-found.tsx` detalle**
   - Archivo: `src/app/catalogo/[id]/not-found.tsx`
   - "Herramienta no encontrada" + link a `/catalogo`.
   - **Done:** ID inexistente → not-found.
 
-- [ ] **31. Implementar `ToolDetailPage`**
+- [X] **31. Implementar `ToolDetailPage`**
   - Archivo: `src/app/catalogo/[id]/page.tsx`
   - SC. Valida id. Handler de container. `notFound()` si null.
   - Todos los campos + SemaforoIndicator + NivelBadge + DPA + BackButton.

@@ -1,0 +1,232 @@
+# CI/CD — LAG Gobierno AI · Catálogo de Herramientas
+#
+# Triggers:
+#   push a main o Development  → jobs 1-4 (install → lint → build → test-e2e)
+#   pull_request a main        → jobs 1-4
+#   push a main únicamente     → job 5 (deploy a Azure App Service)
+#
+# Secrets requeridos (GitHub → Settings → Secrets → Actions):
+#   DATABASE_URL                 — Connection string PostgreSQL (Neon) para CI/CD
+#   AZURE_WEBAPP_PUBLISH_PROFILE — Publish profile de Azure App Service
+
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+      - Development
+  pull_request:
+    branches:
+      - main
+
+env:
+  NODE_VERSION: "20"
+  APP_NAME: logiztik-catalogo
+
+# ---------------------------------------------------------------------------
+# Job 1 — Install & Cache
+# ---------------------------------------------------------------------------
+jobs:
+  install:
+    name: Install dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install dependencies
+        # Solo instala si el cache no hizo hit exacto
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+# ---------------------------------------------------------------------------
+# Job 2 — Lint
+# ---------------------------------------------------------------------------
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: install
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Run ESLint
+        run: npm run lint
+
+# ---------------------------------------------------------------------------
+# Job 3 — Build
+# ---------------------------------------------------------------------------
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: lint
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Next.js build
+        run: npm run build
+
+      - name: Cache Next.js build output
+        uses: actions/cache@v4
+        with:
+          path: .next
+          key: nextjs-build-${{ runner.os }}-${{ github.sha }}
+
+# ---------------------------------------------------------------------------
+# Job 4 — E2E Tests
+# ---------------------------------------------------------------------------
+  test-e2e:
+    name: E2E Tests (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Playwright usa PLAYWRIGHT_BROWSERS_PATH para reusar browsers cacheados
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/pw-browsers
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Restore Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next
+          key: nextjs-build-${{ runner.os }}-${{ github.sha }}
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Cache Playwright browsers
+        id: cache-pw-browsers
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
+          key: pw-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        # Solo instala si el cache no hizo hit exacto
+        if: steps.cache-pw-browsers.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Start app in background
+        run: |
+          npm start &
+          sleep 5
+        env:
+          PORT: 3000
+
+      - name: Run Playwright tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        # Siempre sube el reporte en caso de fallo para diagnóstico
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+# ---------------------------------------------------------------------------
+# Job 5 — Deploy (solo en push a main)
+# ---------------------------------------------------------------------------
+  deploy:
+    name: Deploy to Azure App Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: test-e2e
+    # Solo se ejecuta en push directo a main (no en PRs ni en Development)
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Restore node_modules cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Restore Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next
+          key: nextjs-build-${{ runner.os }}-${{ github.sha }}
+
+      - name: Deploy to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.APP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          # Empaqueta todo lo necesario para next start en producción
+          package: .
