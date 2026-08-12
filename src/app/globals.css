@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/**
+ * Design System LAG — Tema LIGHT (claro).
+ * NO hay dark mode. El catálogo es para uso interno con tema fijo.
+ */
+
+body {
+  color: #383838;
+  background: #ffffff;
+}
