@@ -1,5 +1,9 @@
 # specific
 /App
+node_modules/
+.next/
 
 # Environment files
-/.env
+.env
+prisma/dev.db
+prisma/dev.db-journal

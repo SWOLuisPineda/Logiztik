@@ -1,0 +1,26 @@
+// Catálogo de Herramientas AI — LAG
+// Datasource: SQLite para desarrollo, PostgreSQL (Neon) en staging/producción.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Herramienta {
+  id            Int      @id @default(autoincrement())
+  nombre        String
+  proveedor     String
+  categoria     String? // Nullable: herramientas en evaluación o retiradas pueden no tener
+  nivelMaximo   String? // "Publica" | "Interna" | "Confidencial" | "Restringida" | null
+  estado        String  @default("Activa") // "Activa" | "Retirada" | "Condicional"
+  dpa           String  @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
+  razonRetiro   String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@unique([nombre, proveedor], name: "nombre_proveedor")
+  @@map("herramientas")
+}
