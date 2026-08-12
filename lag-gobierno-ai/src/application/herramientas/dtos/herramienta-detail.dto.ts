@@ -6,6 +6,7 @@ import { HerramientaListItemDto } from "./herramienta-list-item.dto";
  */
 export interface HerramientaDetailDto extends HerramientaListItemDto {
   dpa: string;
+  retiradaEn: string | null; // ISO 8601 o null si no hay dato
   creadoEn: string;
   actualizadoEn: string;
 }
