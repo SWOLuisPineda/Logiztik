@@ -46,7 +46,7 @@ function createPrismaClient(): PrismaClient {
     if (!fs.existsSync(filePath)) {
       console.error(
         `[prisma.client] ERROR: Base de datos no encontrada en: ${filePath}\n` +
-          `Ejecuta: npm run db:seed (o npx prisma migrate dev) para crearla.`
+        `Ejecuta: npm run db:seed (o npx prisma migrate dev) para crearla.`
       );
     }
   }
