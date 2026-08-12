@@ -4,11 +4,12 @@ import { EstadoHerramienta } from "./value-objects/estado-herramienta.vo";
 
 /**
  * Filtros opcionales para la consulta de herramientas.
- * Se aplican con AND cuando ambos están presentes.
+ * Se aplican con AND cuando varios están presentes.
  */
 export interface HerramientaFilters {
   nivelMaximo?: NivelClasificacion;
   estado?: EstadoHerramienta;
+  categoria?: string; // H2: Preparado para Post-MVP (US-07). MVP no lo usa en FilterBar.
 }
 
 /**

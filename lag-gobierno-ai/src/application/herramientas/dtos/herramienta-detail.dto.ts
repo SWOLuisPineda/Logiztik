@@ -6,6 +6,7 @@ import { HerramientaListItemDto } from "./herramienta-list-item.dto";
  */
 export interface HerramientaDetailDto extends HerramientaListItemDto {
   dpa: string;
+  retiradaEn: string | null;
   creadoEn: string;
   actualizadoEn: string;
 }

@@ -24,6 +24,10 @@ export class PrismaHerramientaRepository implements IHerramientaRepository {
       where.estado = filters.estado;
     }
 
+    if (filters?.categoria) {
+      where.categoria = filters.categoria;
+    }
+
     // Prisma SQLite no soporta orderBy con CASE nativo.
     // Consultamos todo y ordenamos en memoria (31 registros, costo trivial).
     const models = await prisma.herramienta.findMany({
@@ -37,7 +41,7 @@ export class PrismaHerramientaRepository implements IHerramientaRepository {
       Retirada: 2,
     };
 
-    models.sort((a, b) => {
+    models.sort((a: { estado: string; nombre: string }, b: { estado: string; nombre: string }) => {
       const ordenA = estadoOrden[a.estado] ?? 3;
       const ordenB = estadoOrden[b.estado] ?? 3;
       if (ordenA !== ordenB) return ordenA - ordenB;
