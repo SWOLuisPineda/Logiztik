@@ -7,6 +7,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 model Herramienta {
@@ -18,6 +19,7 @@ model Herramienta {
   estado        String  @default("Activa") // "Activa" | "Retirada" | "Condicional"
   dpa           String  @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
   razonRetiro   String?
+  retiradaEn    DateTime? // Fecha de retiro. null si está activa/condicional. Post-MVP: se registra al retirar.
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 

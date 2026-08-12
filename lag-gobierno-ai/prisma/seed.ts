@@ -350,6 +350,19 @@ async function main() {
 
   const count = await prisma.herramienta.count();
   console.log(`Seed completo. Total herramientas en BD: ${count}`);
+
+  // H9 (design.md): validación de integridad post-seed
+  const totalEsperado = 31; // 27 activas (incluye 1 Condicional) + 4 retiradas
+  if (count !== totalEsperado) {
+    console.warn(
+      `⚠️  SEED INTEGRITY WARNING: Se esperaban ${totalEsperado} registros, ` +
+      `pero hay ${count} en BD. ` +
+      `Verificar si catalogo-herramientas-datos.md fue actualizado sin re-ejecutar el seed.`
+    );
+    process.exit(1);
+  }
+
+  console.log(`✅ Integridad verificada: ${count}/${totalEsperado} herramientas.`);
 }
 
 main()
