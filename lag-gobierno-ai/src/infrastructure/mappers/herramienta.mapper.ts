@@ -17,6 +17,7 @@ interface PrismaHerramientaModel {
   estado: string;
   dpa: string;
   razonRetiro: string | null;
+  retiradaEn?: Date | null;
   creadoEn: Date;
   actualizadoEn: Date;
 }
@@ -45,6 +46,7 @@ export function toDomain(model: PrismaHerramientaModel): Herramienta {
     estado,
     dpa: model.dpa,
     razonRetiro: model.razonRetiro,
+    retiradaEn: model.retiradaEn ?? null,
     creadoEn: model.creadoEn,
     actualizadoEn: model.actualizadoEn,
   });

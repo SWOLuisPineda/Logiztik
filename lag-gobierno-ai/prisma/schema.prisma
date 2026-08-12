@@ -18,6 +18,7 @@ model Herramienta {
   estado        String  @default("Activa") // "Activa" | "Retirada" | "Condicional"
   dpa           String  @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
   razonRetiro   String?
+  retiradaEn    DateTime?
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
