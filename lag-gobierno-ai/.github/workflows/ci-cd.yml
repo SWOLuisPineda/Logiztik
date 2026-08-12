@@ -2,9 +2,9 @@ name: CI/CD Azure App Service
 
 on:
   push:
-    branches: [main, Development]
+    branches: [Development, QA, main]
   pull_request:
-    branches: [main]
+    branches: [Development, QA, main]
 
 jobs:
   install:
@@ -24,7 +24,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node20-npm-
 
@@ -33,7 +33,7 @@ jobs:
 
   lint:
     name: Lint
-    needs: install
+    needs: [install]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -49,7 +49,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node20-npm-
 
@@ -61,7 +61,7 @@ jobs:
 
   build:
     name: Build
-    needs: lint
+    needs: [lint]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -79,7 +79,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node20-npm-
 
@@ -94,7 +94,7 @@ jobs:
 
   test-e2e:
     name: E2E Tests
-    needs: build
+    needs: [build]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -112,7 +112,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('package-lock.json') }}
+          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node20-npm-
 
@@ -126,7 +126,7 @@ jobs:
         run: npm run build
 
       - name: Start app
-        run: npm start &
+        run: PORT=3000 npm start &
 
       - name: Wait app startup
         run: sleep 5
@@ -144,8 +144,8 @@ jobs:
 
   deploy:
     name: Deploy to Azure App Service
-    needs: test-e2e
-    if: github.ref == 'refs/heads/main'
+    needs: [test-e2e]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
