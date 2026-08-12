@@ -111,18 +111,18 @@
 
 ## Fase 4: Presentation — Validaciones y API routes
 
-- [ ] **15. Crear Zod schemas de validación HTTP**
+- [x] **15. Crear Zod schemas de validación HTTP**
   - Archivo: `src/presentation/validations/herramienta.validation.ts`
   - `ListHerramientasQuerySchema` (nivel + estado opcionales), `GetHerramientaParamsSchema` (id entero positivo).
   - **Done:** `safeParse` valida correctamente.
 
-- [ ] **16. Implementar GET /api/herramientas**
+- [x] **16. Implementar GET /api/herramientas**
   - Archivo: `src/app/api/herramientas/route.ts`
   - Thin: Zod parse → import handler de container → `execute(filters)` → JSON response.
   - Errores: 400 descriptivo, 500 `"Error interno del servidor"` + `console.error`.
   - **Done:** 200 (31 items), `?nivel=Publica` (5), `?nivel=Invalido` (400), BD caída (500).
 
-- [ ] **17. Implementar GET /api/herramientas/[id]**
+- [x] **17. Implementar GET /api/herramientas/[id]**
   - Archivo: `src/app/api/herramientas/[id]/route.ts`
   - Thin: Zod parse id → handler.execute(id) → 200/404/400/500.
   - **Done:** `/1`→200, `/999`→404, `/abc`→400.
@@ -131,32 +131,32 @@
 
 ## Fase 5: Presentation — Componentes atómicos
 
-- [ ] **18. Crear `SemaforoIndicator`**
+- [x] **18. Crear `SemaforoIndicator`**
   - Archivo: `src/presentation/components/SemaforoIndicator.tsx`
   - SC. Verde `#86B81C`, amarillo `#F59E0B`, rojo `#DC2626`. Texto + aria-label.
   - **Done:** 3 estados. WCAG AA (no solo color).
 
-- [ ] **19. Crear `NivelBadge`**
+- [x] **19. Crear `NivelBadge`**
   - Archivo: `src/presentation/components/NivelBadge.tsx`
   - SC. Null → gris "Sin clasificar". 4 niveles con color.
   - **Done:** 5 variantes.
 
-- [ ] **20. Crear `EmptyState`**
+- [x] **20. Crear `EmptyState`**
   - Archivo: `src/presentation/components/EmptyState.tsx`
   - SC. "No hay herramientas registradas actualmente".
   - **Done:** Renderiza mensaje.
 
-- [ ] **21. Crear `ErrorState`**
+- [x] **21. Crear `ErrorState`**
   - Archivo: `src/presentation/components/ErrorState.tsx`
   - CC. Props: `reset()`. Botón "Reintentar".
   - **Done:** `"use client"`. Mensaje + botón.
 
-- [ ] **22. Crear `BackButton`**
+- [x] **22. Crear `BackButton`**
   - Archivo: `src/presentation/components/BackButton.tsx`
   - CC. `Link` a `/catalogo`. Lee `useSearchParams` para preservar `?nivel=`.
   - **Done:** Navega correctamente. Preserva filtro.
 
-- [ ] **23. Crear `FilterBar`**
+- [x] **23. Crear `FilterBar`**
   - Archivo: `src/presentation/components/FilterBar.tsx`
   - CC. `<label>` + `<select>`. `useSearchParams` + `useRouter`.
   - **Done:** Actualiza URL. "Todos" remueve param. Label accesible.
@@ -165,14 +165,14 @@
 
 ## Fase 6: Presentation — Componentes compuestos
 
-- [ ] **24. Crear `ToolCard`**
+- [x] **24. Crear `ToolCard`**
   - Archivo: `src/presentation/components/ToolCard.tsx`
   - SC. Props: `HerramientaListItemDto`. Link, SemaforoIndicator, NivelBadge.
   - Retirada → razón inline. Null → "Sin categoría".
   - Card: `rounded-lg bg-white border border-[#E2E8E0] shadow-sm p-6`.
   - **Done:** Campos completos. Nulls manejados.
 
-- [ ] **25. Crear `ToolList`**
+- [x] **25. Crear `ToolList`**
   - Archivo: `src/presentation/components/ToolList.tsx`
   - SC. Grid: `grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4`. Vacío → EmptyState.
   - **Done:** Grid responsivo. EmptyState en vacío.
@@ -181,31 +181,31 @@
 
 ## Fase 7: Presentation — Páginas
 
-- [ ] **26. Crear `loading.tsx` catálogo**
+- [x] **26. Crear `loading.tsx` catálogo**
   - Archivo: `src/app/catalogo/loading.tsx`
   - **Done:** Skeleton visible durante fetch.
 
-- [ ] **27. Crear `error.tsx` catálogo**
+- [x] **27. Crear `error.tsx` catálogo**
   - Archivo: `src/app/catalogo/error.tsx`
   - CC. Renderiza ErrorState con `reset`.
   - **Done:** BD falla → ErrorState, no error críptico.
 
-- [ ] **28. Implementar `CatalogoPage`**
+- [x] **28. Implementar `CatalogoPage`**
   - Archivo: `src/app/catalogo/page.tsx`
   - SC. Lee `searchParams.nivel`. Importa handler de `@/infrastructure/container`. Renderiza FilterBar + ToolList.
   - `export const metadata = { title: "Catálogo de Herramientas AI — LAG" }`.
   - **Done:** 31 herramientas. Filtro funciona. Metadata correcta. Usa handler (no Prisma directo).
 
-- [ ] **29. Crear `loading.tsx` detalle**
+- [x] **29. Crear `loading.tsx` detalle**
   - Archivo: `src/app/catalogo/[id]/loading.tsx`
   - **Done:** Skeleton visible.
 
-- [ ] **30. Crear `not-found.tsx` detalle**
+- [x] **30. Crear `not-found.tsx` detalle**
   - Archivo: `src/app/catalogo/[id]/not-found.tsx`
   - "Herramienta no encontrada" + link a `/catalogo`.
   - **Done:** ID inexistente → not-found.
 
-- [ ] **31. Implementar `ToolDetailPage`**
+- [x] **31. Implementar `ToolDetailPage`**
   - Archivo: `src/app/catalogo/[id]/page.tsx`
   - SC. Valida id. Handler de container. `notFound()` si null.
   - Todos los campos + SemaforoIndicator + NivelBadge + DPA + BackButton.
@@ -217,12 +217,12 @@
 
 ## Fase 8: Layout y calidad final
 
-- [ ] **32. Crear layout catálogo**
+- [x] **32. Crear layout catálogo**
   - Archivo: `src/app/catalogo/layout.tsx`
   - `max-w-5xl mx-auto px-4 py-8`. Inter.
   - **Done:** Contenedor centrado.
 
-- [ ] **33. Verificar Dependency Rule**
+- [x] **33. Verificar Dependency Rule**
   - Checklist:
     - `src/domain/` → 0 imports de application/infrastructure/presentation ✓
     - `src/application/` → 0 imports de infrastructure/presentation ✓
@@ -230,11 +230,11 @@
     - Pages → importan solo de `@/infrastructure/container` y `@/presentation/components/` ✓
   - **Done:** `tsc --noEmit` pasa. Ningún import viola la regla.
 
-- [ ] **34. Verificar accesibilidad (WCAG AA)**
+- [x] **34. Verificar accesibilidad (WCAG AA)**
   - aria-labels, labels en forms, contraste ≥4.5:1, no solo color.
   - **Done:** Componentes accesibles.
 
-- [ ] **35. Smoke test de flujo completo**
+- [x] **35. Smoke test de flujo completo**
   - `npx prisma db seed` + `npm run dev`
   - Flujo: `/catalogo` → 31 herramientas (grid 3/2/1 cols) → filtrar "Pública" (5) → "Restringida" (3) → limpiar → detalle activa (DPA, semáforo verde) → volver → detalle retirada (banner rojo, razón) → Odiseo (amarillo, "Sin clasificar") → `/catalogo/999` (not-found)
   - **Done:** Flujo sin errores. Clean Architecture respetada. Datos correctos.

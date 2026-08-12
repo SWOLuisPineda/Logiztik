@@ -500,6 +500,9 @@ console.error(JSON.stringify({
 
 Post-MVP: este bloque se reemplaza por `logger.error({...})` cuando se integre un sistema de observabilidad centralizado.
 
+<!-- agregado post-implementación -->
+> **Nota Post-MVP:** La función `classifyPrismaError` y el campo `retryable` en las responses están diseñados pero **no implementados en MVP**. La implementación actual usa un catch genérico que siempre retorna 500 con `"Error interno del servidor"`. El `ErrorState` siempre muestra el botón "Reintentar". Razón: con 31 registros en SQLite local, la probabilidad de errores transient es mínima. Post-MVP (cuando se migre a PostgreSQL/Neon en producción): implementar `classifyPrismaError`, diferenciar 503 vs 500, y pasar `retryable` al error boundary.
+
 ---
 
 ## 6. Seguridad (MVP)

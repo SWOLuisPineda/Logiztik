@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model Herramienta {
@@ -18,6 +18,7 @@ model Herramienta {
   estado        String  @default("Activa") // "Activa" | "Retirada" | "Condicional"
   dpa           String  @default("No aplica") // "Vigente" | "No aplica" | "Pendiente"
   razonRetiro   String?
+  retiradaEn    DateTime? // Cuándo fue retirada. Null si está activa/condicional o si no hay fecha histórica.
   creadoEn      DateTime @default(now())
   actualizadoEn DateTime @updatedAt
 
