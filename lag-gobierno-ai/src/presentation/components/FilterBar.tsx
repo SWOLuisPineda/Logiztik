@@ -10,7 +10,7 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
  * Label accesible asociado al select.
  */
 
-const NIVELES = ["Publica", "Interna", "Confidencial", "Restringida"] as const;
+const NIVELES = ["Publica ", "Interna", "Confidencial", "Restringida"] as const;
 
 export default function FilterBar() {
   const router = useRouter();
