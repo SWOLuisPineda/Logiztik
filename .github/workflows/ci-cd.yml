@@ -1,5 +1,9 @@
 name: CI/CD Azure App Service
 
+env:
+  # Versión de Node compartida por todos los jobs.
+  NODE_VERSION: 24
+
 on:
   push:
     branches: [Development, QA, main]
@@ -12,21 +16,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Dependencias base para el resto del pipeline.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -37,21 +42,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Lint independiente para cortar feedback rápido antes de build/test.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -65,23 +71,25 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Opción B (híbrida): en CI se valida con SQLite local reproducible.
+      DATABASE_URL: file:./prisma/dev.db
     steps:
+      # Build de producción. Usa fallback SQLite cuando no hay secret disponible.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -96,25 +104,28 @@ jobs:
     name: E2E Tests
     needs: [build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Opción B (híbrida): E2E en CI corre con SQLite local.
+      DATABASE_URL: file:./prisma/dev.db
+      PORT: '3200'
     steps:
+      # Playwright gestiona su propio webServer; este job no debe arrancar otra app en paralelo.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -122,17 +133,11 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium
 
-      - name: Build app
-        run: npm run build
-
-      - name: Start app
-        run: PORT=3000 npm start &
-
-      - name: Wait app startup
-        run: sleep 5
+      - name: Apply Prisma migrations for E2E
+        run: npx prisma migrate deploy
 
       - name: Run E2E
-        run: npx playwright test
+        run: npm run test:e2e
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -149,6 +154,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Fase actual: despliegue en Azure tras validar CI local.
+      # Fase siguiente (pendiente): validación post-deploy contra Azure PostgreSQL.
       - name: Checkout
         uses: actions/checkout@v4
 
