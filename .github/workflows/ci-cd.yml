@@ -134,6 +134,9 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium
 
+      - name: Apply Prisma migrations for E2E
+        run: npx prisma migrate deploy
+
       - name: Run E2E
         run: npm run test:e2e
 
