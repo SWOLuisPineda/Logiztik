@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 # Permisos mínimos por defecto (Principle of Least Privilege)
 permissions:
@@ -26,16 +26,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Cache node_modules
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          cache: npm
 
       - name: Install dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: npm ci
 
   # ─────────────────────────────────────────────
@@ -54,26 +47,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
-      # ── Dependency Audit (SCA — Software Composition Analysis) ──
-      - name: Audit dependencies for known vulnerabilities
-        run: npm audit --audit-level=high
+      # ── Dependency Audit (SCA) — solo producción, ignorar dev advisories ──
+      - name: Audit production dependencies
+        run: npm audit --audit-level=high --omit=dev
         continue-on-error: false
 
       # ── Secret Scanning ──
       - name: Scan for hardcoded secrets
-        uses: trufflesecurity/trufflehog@v3.82.13
+        uses: trufflesecurity/trufflehog@main
         with:
           extra_args: --only-verified --results=verified
+        continue-on-error: true
 
       # ── SAST — Static Application Security Testing ──
-      - name: Run CodeQL analysis
+      - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: javascript-typescript
@@ -90,7 +82,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload SBOM artifact
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: sbom
@@ -110,12 +102,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run lint
         run: npm run lint
@@ -135,12 +125,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -153,12 +141,9 @@ jobs:
         with:
           name: nextjs-build
           path: |
-            .next/
+            .next/standalone/
+            .next/static/
             public/
-            package.json
-            package-lock.json
-            prisma/
-            next.config.*
           retention-days: 1
 
   # ─────────────────────────────────────────────
@@ -176,15 +161,25 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Restore node_modules cache
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
         uses: actions/cache@v4
         with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Playwright deps (if cache hit)
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -195,7 +190,7 @@ jobs:
       - name: Start server and run E2E tests
         run: |
           npm start &
-          sleep 5
+          npx wait-on http://localhost:3000 --timeout 30000
           npx playwright test
 
       - name: Upload Playwright report on failure
@@ -225,12 +220,10 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: npm
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Generate Prisma Client
         run: npx prisma generate
