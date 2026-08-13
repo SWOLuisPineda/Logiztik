@@ -6,6 +6,8 @@ import SemaforoIndicator from "@/presentation/components/SemaforoIndicator";
 import NivelBadge from "@/presentation/components/NivelBadge";
 import BackButton from "@/presentation/components/BackButton";
 
+export const dynamic = "force-dynamic";
+
 /**
  * ToolDetailPage — Detalle completo de una herramienta.
  *

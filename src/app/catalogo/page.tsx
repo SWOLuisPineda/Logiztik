@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   title: "Catálogo de Herramientas AI — LAG",
 };
 
+export const dynamic = "force-dynamic";
+
 /**
  * CatalogoPage — Página principal del catálogo.
  *
