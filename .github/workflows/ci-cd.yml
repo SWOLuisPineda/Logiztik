@@ -1,11 +1,8 @@
 name: CI/CD Azure App Service
 
 env:
-  # Versiones y puertos compartidos por todos los jobs.
+  # Versión de Node compartida por todos los jobs.
   NODE_VERSION: 24
-  APP_PORT: 3200
-  # Fallback para CI cuando el secret DATABASE_URL no está disponible (ej. PRs desde forks).
-  FALLBACK_DATABASE_URL: file:./prisma/dev.db
 
 on:
   push:
@@ -74,7 +71,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || 'file:./prisma/dev.db' }}
+      # Opción B (híbrida): en CI se valida con SQLite local reproducible.
+      DATABASE_URL: file:./prisma/dev.db
     steps:
       # Build de producción. Usa fallback SQLite cuando no hay secret disponible.
       - name: Checkout
@@ -108,7 +106,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || 'file:./prisma/dev.db' }}
+      # Opción B (híbrida): E2E en CI corre con SQLite local.
+      DATABASE_URL: file:./prisma/dev.db
       PORT: '3200'
     steps:
       # Playwright gestiona su propio webServer; este job no debe arrancar otra app en paralelo.
@@ -155,7 +154,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      # Deploy solo en main tras pasar lint, build y E2E.
+      # Fase actual: despliegue en Azure tras validar CI local.
+      # Fase siguiente (pendiente): validación post-deploy contra Azure PostgreSQL.
       - name: Checkout
         uses: actions/checkout@v4
 
