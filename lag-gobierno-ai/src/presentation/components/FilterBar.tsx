@@ -64,7 +64,7 @@ export function FilterBar({ sinNivelCount = 0 }: FilterBarProps) {
           className="rounded-lg border border-[#E2E8E0] bg-white px-3 py-1.5 text-sm text-[#383838] shadow-sm focus:border-[#86B81C] focus:outline-none focus:ring-2 focus:ring-[#86B81C]/30 transition-colors"
           aria-label="Selecciona el nivel de clasificación para filtrar herramientas"
         >
-          <option value="">Todos</option>
+          <option value="">Todos los niveles</option>
           {NIVELES.map((nivel) => (
             <option key={nivel} value={nivel}>
               {nivel}

@@ -15,13 +15,13 @@
 | brand-dark     | #5C8314 | Hover/pressed               |
 
 ## Semáforo
-- Verde (#86B81C): Activa, puede usarse
-- Amarillo (#F59E0B): Activa con restricciones
-- Rojo (#DC2626): Retirada
+- Verde (#86B81C): Activa, puede usarse — texto #5C8314
+- Amarillo (#F59E0B): Activa con restricciones — texto #D97706
+- Rojo (#DC2626): Retirada — texto #DC2626
 
 ## Componentes Tailwind
 - Cards: `rounded-lg bg-white border border-[#E2E8E0] shadow-sm p-6`
-- Badges activos: `rounded-full px-3 py-1 text-sm font-medium bg-[#86B81C]/10 text-[#5C8314]`
+- Badges activos: `rounded-full px-3 py-1 text-xs font-medium bg-brand-primary/10 text-brand-dark`
 - Badges retirados: `rounded-full px-3 py-1 text-sm font-medium bg-red-50 text-red-700`
 - Botones primarios: `bg-[#86B81C] hover:bg-[#5C8314] text-white rounded-lg px-4 py-2`
 - Tablas: header `bg-[#F5F7F0] text-[#383838] font-medium`, rows `border-b border-[#E2E8E0]`
@@ -35,3 +35,14 @@
 - Contraste #383838/#FFFFFF: 10.5:1 ✅
 - Lima sobre blanco: 3.4:1 ⚠️ (solo texto grande o botones)
 - El tema es LIGHT (claro)
+
+
+---
+
+## Imágenes
+
+> - Logo empresa:
+> ![Logo Logiztik Alliance Group](/docs/imgs/LogiztikAlliance.png)
+
+> - Icono empresa:
+> ![Icono Logiztik Alliance](/docs/imgs/Icono.png)

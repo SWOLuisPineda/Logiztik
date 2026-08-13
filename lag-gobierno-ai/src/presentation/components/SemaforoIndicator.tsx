@@ -21,27 +21,30 @@ interface SemaforoIndicatorProps {
 
 const CONFIG: Record<
   EstadoHerramienta,
-  { dotClass: string; label: string; texto: string }
+  { dotClass: string; textClass: string; label: string; texto: string }
 > = {
   Activa: {
     dotClass: "inline-block h-3 w-3 rounded-full bg-[#86B81C] shrink-0",
+    textClass: "text-sm font-medium text-[#5C8314]",
     label: "Estado: Activa — autorizada para uso",
     texto: "Activa",
   },
   Condicional: {
     dotClass: "inline-block h-3 w-3 rounded-full bg-[#F59E0B] shrink-0",
+    textClass: "text-sm font-medium text-[#D97706]",
     label: "Estado: Condicional — autorizada con restricciones",
     texto: "Condicional",
   },
   Retirada: {
     dotClass: "inline-block h-3 w-3 rounded-full bg-[#DC2626] shrink-0",
+    textClass: "text-sm font-medium text-[#DC2626]",
     label: "Estado: Retirada — no autorizada para uso",
     texto: "Retirada",
   },
 };
 
 export function SemaforoIndicator({ estado }: SemaforoIndicatorProps) {
-  const { dotClass, label, texto } = CONFIG[estado];
+  const { dotClass, textClass, label, texto } = CONFIG[estado];
 
   return (
     <span
@@ -51,8 +54,8 @@ export function SemaforoIndicator({ estado }: SemaforoIndicatorProps) {
     >
       {/* Círculo de color — decorativo, el aria-label transmite el significado */}
       <span className={dotClass} aria-hidden="true" />
-      {/* Texto visible — no depende solo del color para transmitir información */}
-      <span className="text-sm font-medium text-[#383838]">{texto}</span>
+      {/* Texto visible — color acorde al estado para refuerzo visual */}
+      <span className={textClass}>{texto}</span>
     </span>
   );
 }

@@ -1,3 +1,5 @@
+import { Header } from "@/presentation/components/Header";
+
 /**
  * Layout del catálogo de herramientas.
  *
@@ -12,8 +14,11 @@ export default function CatalogoLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8 bg-[#F5F7F0] min-h-screen">
-      {children}
-    </main>
+    <div className="min-h-screen bg-[#F5F7F0]">
+      <div className="mx-auto max-w-5xl px-4 py-6">
+        <Header />
+        <main>{children}</main>
+      </div>
+    </div>
   );
 }

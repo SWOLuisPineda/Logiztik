@@ -23,11 +23,11 @@ interface NivelBadgeProps {
 
 const VARIANTES: Record<NivelClasificacion, string> = {
   Publica:
-    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-[#86B81C]/10 text-[#5C8314]",
+    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-brand-primary/10 text-brand-dark",
   Interna:
-    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-blue-50 text-blue-700",
+    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-lag-bg-secondary text-lag-text-primary border border-lag-border",
   Confidencial:
-    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-orange-50 text-orange-700",
+    "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-amber-50 text-amber-700",
   Restringida:
     "inline-flex items-center rounded-full px-3 py-1 text-xs font-medium bg-red-50 text-red-700",
 };

@@ -67,10 +67,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 function buildValidationMessage(field: string): string {
   const messages: Record<string, string> = {
     nivel:
-      "El parámetro 'nivel' debe ser: Publica, Interna, Confidencial o Restringida.",
+      "El parámetro 'nivel' debe ser: Pública, Interna, Confidencial o Restringida.",
     estado: "El parámetro 'estado' debe ser: Activa, Retirada o Condicional.",
     categoria:
-      "El parámetro 'categoria' debe tener entre 1 y 100 caracteres.",
+      "El parámetro 'categoría' debe tener entre 1 y 100 caracteres.",
   };
   return messages[field] ?? `El parámetro '${field}' es inválido.`;
 }
