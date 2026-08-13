@@ -1,5 +1,12 @@
 name: CI/CD Azure App Service
 
+env:
+  # Versiones y puertos compartidos por todos los jobs.
+  NODE_VERSION: 24
+  APP_PORT: 3200
+  # Fallback para CI cuando el secret DATABASE_URL no está disponible (ej. PRs desde forks).
+  FALLBACK_DATABASE_URL: file:./prisma/dev.db
+
 on:
   push:
     branches: [Development, QA, main]
@@ -12,21 +19,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Dependencias base para el resto del pipeline.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -37,21 +45,22 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Lint independiente para cortar feedback rápido antes de build/test.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -65,23 +74,24 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.FALLBACK_DATABASE_URL }}
     steps:
+      # Build de producción. Usa fallback SQLite cuando no hay secret disponible.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -96,25 +106,27 @@ jobs:
     name: E2E Tests
     needs: [build]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.FALLBACK_DATABASE_URL }}
+      PORT: ${{ env.APP_PORT }}
     steps:
+      # Playwright gestiona su propio webServer; este job no debe arrancar otra app en paralelo.
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js 20
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
 
       - name: Cache npm
         uses: actions/cache@v4
         with:
           path: ~/.npm
-          key: ${{ runner.os }}-node20-npm-${{ hashFiles('**/package-lock.json') }}
+          key: ${{ runner.os }}-node24-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
-            ${{ runner.os }}-node20-npm-
+            ${{ runner.os }}-node24-npm-
 
       - name: Install
         run: npm ci
@@ -122,17 +134,8 @@ jobs:
       - name: Install Playwright Chromium
         run: npx playwright install chromium
 
-      - name: Build app
-        run: npm run build
-
-      - name: Start app
-        run: PORT=3000 npm start &
-
-      - name: Wait app startup
-        run: sleep 5
-
       - name: Run E2E
-        run: npx playwright test
+        run: npm run test:e2e
 
       - name: Upload Playwright report on failure
         if: failure()
@@ -149,6 +152,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # Deploy solo en main tras pasar lint, build y E2E.
       - name: Checkout
         uses: actions/checkout@v4
 
