@@ -74,7 +74,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.FALLBACK_DATABASE_URL }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || 'file:./prisma/dev.db' }}
     steps:
       # Build de producción. Usa fallback SQLite cuando no hay secret disponible.
       - name: Checkout
@@ -108,8 +108,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || env.FALLBACK_DATABASE_URL }}
-      PORT: ${{ env.APP_PORT }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL != '' && secrets.DATABASE_URL || 'file:./prisma/dev.db' }}
+      PORT: '3200'
     steps:
       # Playwright gestiona su propio webServer; este job no debe arrancar otra app en paralelo.
       - name: Checkout
