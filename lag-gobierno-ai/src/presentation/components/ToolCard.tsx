@@ -83,15 +83,17 @@ export default function ToolCard({ herramienta, nivelFiltroActivo }: ToolCardPro
         <NivelBadge nivel={nivelMaximo} />
       </div>
 
-      {/* Banner de herramienta retirada */}
+      {/* Banner de herramienta retirada — US-05: mensaje de advertencia visible sin navegar al detalle */}
       {esRetirada && (
         <div
           role="alert"
           className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-xs text-red-700"
         >
-          <span className="font-semibold">No autorizada.</span>
+          <p className="font-semibold">
+            Esta herramienta NO está autorizada. No la utilice con datos de LAG.
+          </p>
           {razonRetiro && (
-            <span className="ml-1">{razonRetiro}</span>
+            <p className="mt-1">Motivo: {razonRetiro}</p>
           )}
         </div>
       )}
