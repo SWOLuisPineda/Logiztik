@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   # ─────────────────────────────────────────────────────────────────────────────
@@ -24,18 +24,9 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-
-      - name: Cache node_modules
-        id: cache-deps
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            deps-${{ runner.os }}-
+          cache: "npm"
 
       - name: Install dependencies
-        if: steps.cache-deps.outputs.cache-hit != 'true'
         run: npm ci
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -53,12 +44,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Run ESLint
         run: npm run lint
@@ -80,12 +69,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Generate Prisma Client
         run: npx prisma generate
@@ -104,6 +91,7 @@ jobs:
             package-lock.json
             next.config.*
             prisma/
+            prisma.config.ts
           retention-days: 1
 
   # ─────────────────────────────────────────────────────────────────────────────
@@ -115,6 +103,7 @@ jobs:
     needs: build
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      CI: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -123,18 +112,22 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install Playwright Chromium
-        run: npx playwright install chromium
+        run: npx playwright install --with-deps chromium
 
       - name: Generate Prisma Client
         run: npx prisma generate
+
+      - name: Run Prisma migrations
+        run: npx prisma migrate deploy
+
+      - name: Seed database
+        run: npx prisma db seed
 
       - name: Build Next.js
         run: npm run build
@@ -142,7 +135,7 @@ jobs:
       - name: Start server and run E2E tests
         run: |
           npm start &
-          sleep 5
+          npx wait-on http://localhost:3000 --timeout 15000
           npx playwright test
 
       - name: Upload Playwright report on failure
@@ -161,6 +154,7 @@ jobs:
     timeout-minutes: 10
     needs: test-e2e
     if: github.ref == 'refs/heads/main'
+    environment: production
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -169,12 +163,10 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          cache: "npm"
 
-      - name: Restore node_modules cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
 
       - name: Generate Prisma Client
         run: npx prisma generate
